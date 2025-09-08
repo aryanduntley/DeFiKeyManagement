@@ -3,7 +3,7 @@ use crate::blockchain::{BlockchainHandler, WalletKeys, SupportedBlockchain};
 use crate::crypto::bip32::{derive_secp256k1_key_from_mnemonic, private_key_to_public_key_secp256k1};
 use bitcoin::secp256k1::{Secp256k1, SecretKey};
 use bitcoin::address::Address;
-use bitcoin::key::PublicKey;
+use bitcoin::key::{PublicKey, CompressedPublicKey};
 use bitcoin::Network;
 use std::str::FromStr;
 
@@ -101,12 +101,13 @@ impl BitcoinHandler {
         let secp_pubkey = bitcoin::secp256k1::PublicKey::from_slice(public_key_bytes)
             .context("Invalid secp256k1 public key format")?;
         
-        // Convert to bitcoin::PublicKey
+        // Convert to bitcoin::PublicKey first, then to CompressedPublicKey
         let public_key = PublicKey::new(secp_pubkey);
+        let compressed_pubkey = CompressedPublicKey::try_from(public_key)
+            .context("Failed to create compressed public key")?;
         
         // Create P2WPKH (Native SegWit) address - most common modern format
-        let address = Address::p2wpkh(&public_key, self.network)
-            .context("Failed to create P2WPKH address")?;
+        let address = Address::p2wpkh(&compressed_pubkey, self.network);
         
         Ok(address.to_string())
     }
@@ -125,10 +126,13 @@ impl BitcoinHandler {
     pub fn public_key_to_nested_segwit_address(&self, public_key_bytes: &[u8]) -> Result<String> {
         let secp_pubkey = bitcoin::secp256k1::PublicKey::from_slice(public_key_bytes)
             .context("Invalid secp256k1 public key format")?;
-        let public_key = PublicKey::new(secp_pubkey);
         
-        let address = Address::p2shwpkh(&public_key, self.network)
-            .context("Failed to create P2SH-WPKH address")?;
+        // Convert to bitcoin::PublicKey first, then to CompressedPublicKey
+        let public_key = PublicKey::new(secp_pubkey);
+        let compressed_pubkey = CompressedPublicKey::try_from(public_key)
+            .context("Failed to create compressed public key")?;
+        
+        let address = Address::p2shwpkh(&compressed_pubkey, self.network);
         
         Ok(address.to_string())
     }
