@@ -1,0 +1,76 @@
+[package]
+name = "wallet-backup"
+version = "0.1.0"
+edition = "2021"
+description = "Multi-chain cryptocurrency wallet backup and key management tool"
+license = "MIT"
+authors = ["DeFi Key Management Project"]
+
+[[bin]]
+name = "wallet-backup"
+path = "src/main.rs"
+
+[dependencies]
+# CLI Framework
+clap = { version = "4.0", features = ["derive", "color"] }
+
+# Database
+rusqlite = { version = "0.30", features = ["bundled"] }
+
+# Cryptography - BIP39/44
+bip39 = "2.0"
+bitcoin = "0.31"
+secp256k1 = { version = "0.28", features = ["rand-std", "recovery"] }
+k256 = "0.13"
+
+# ed25519 for Solana, Cardano, etc.
+ed25519-dalek = "2.0"
+curve25519-dalek = "4.0"
+
+# Stellar XLM support (using available version)
+# stellar-base = "0.6.0"  # Comment out for now, implement manually
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Utilities
+hex = "0.4"
+anyhow = "1.0"
+thiserror = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Random number generation
+rand = "0.8"
+
+# PBKDF2 for key derivation
+pbkdf2 = "0.12"
+sha2 = "0.10"
+
+# Base58 encoding (Bitcoin addresses)
+bs58 = "0.5"
+
+# Bech32 encoding (Bitcoin segwit addresses)  
+bech32 = "0.9"
+
+# Blake2b hashing (for some chains)
+blake2 = "0.10"
+
+# SHA3/Keccak for Ethereum
+sha3 = "0.10"
+
+# HMAC for key derivation
+hmac = "0.12"
+
+[dev-dependencies]
+tempfile = "3.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
