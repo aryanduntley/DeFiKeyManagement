@@ -18,31 +18,72 @@
 - **Database**: SQLite (local storage only)
 - **Architecture**: Single binary, self-contained CLI application
 
-### Supported Blockchains
+### Implementation Status & Priority Order
+
+**Implementation Strategy**: Working on 3 blockchains at a time for focused development and testing.
+
+#### ✅ **Phase 0: Foundation (COMPLETED)**
+- [x] **Bitcoin** - secp256k1, BIP-44 (m/44'/0'/0'/0/0) - *COMPLETE*
+- [x] **Ethereum** - secp256k1, BIP-44 (m/44'/60'/0'/0/0) - *COMPLETE*
+- [x] **Solana** - ed25519, SLIP-0010 (m/44'/501'/0'/0') - *COMPLETE*
+- [x] **Stellar (XLM)** - ed25519, SLIP-0010 (m/44'/148'/0') - *COMPLETE*
+
+#### 🚧 **Phase 1: Next 3 (IN PROGRESS)**
+- [ ] **XRP (Ripple)** - secp256k1, BIP-44 (m/44'/144'/0'/0/0) - *TARGET*
+- [ ] **Litecoin** - secp256k1, BIP-44 (m/44'/2'/0'/0/0) - *TARGET*
+- [ ] **Cardano (ADA)** - ed25519, CIP-1852 (m/1852'/1815'/0'/0/0) - *TARGET*
+
+#### 📋 **Phase 2: Next 3 (PENDING)**
+- [ ] **TRON** - secp256k1, ETH-style (m/44'/195'/0'/0/0)
+- [ ] **Polygon** - secp256k1, ETH-compatible (m/44'/966'/0'/0/0)
+- [ ] **Optimism** - secp256k1, Uses ETH derivation (m/44'/60'/0'/0/0)
+
+#### 📋 **Phase 3: Next 3 (PENDING)**
+- [ ] **Cronos (CRO)** - secp256k1, BIP-44 (m/44'/394'/0'/0/0)
+- [ ] **Binance BNB** - secp256k1, BEP-44 (m/44'/714'/0'/0/0)
+- [ ] **Cosmos** - secp256k1, BIP-44 (m/44'/118'/0'/0/0)
+
+#### 📋 **Phase 4: Next 3 (PENDING)**
+- [ ] **Algorand** - ed25519, SLIP-0010 (m/44'/283'/0'/0'/0')
+- [ ] **Hedera (HBAR)** - ed25519, SLIP-0010 (m/44'/3030'/0'/0'/0')
+- [ ] **Polkadot** - ed25519, SLIP-0010 (m/44'/354'/0'/0'/0')
+
+#### 📋 **Phase 5: Next 3 (PENDING)**
+- [ ] **Sui** - ed25519, SLIP-0010 (m/44'/784'/0'/0'/0')
+- [ ] **IOTA** - ed25519, SLIP-0010 (m/44'/4218'/0'/0'/0')
+- [ ] **TON** - ed25519, Custom derivation (m/44'/607'/0'/0')
+
+#### 📋 **Phase 6: Final 2 (PENDING)**
+- [ ] **XDC** - secp256k1, BIP-44 (m/44'/550'/0'/0/0)
+- [ ] **Quant (QNT)** - secp256k1, BIP-44 (m/44'/1110'/0'/0/0)
+
+**Current Focus**: Phase 1 - XRP, Litecoin, Cardano
+
+### Supported Blockchains Reference
 
 | Blockchain | Coin Type (SLIP-0044) | Curve | Default Derivation Path | Notes |
 |------------|----------------------|-------|-------------------------|-------|
 | Bitcoin | 0 | secp256k1 | m/44'/0'/0'/0/0 | Standard BIP-44 |
 | Ethereum | 60 | secp256k1 | m/44'/60'/0'/0/0 | Standard BIP-44 |
 | Solana | 501 | ed25519 | m/44'/501'/0'/0' | Uses SLIP-0010 |
+| Stellar (XLM) | 148 | ed25519 | m/44'/148'/0' | SLIP-0010 style |
 | XRP (Ripple) | 144 | secp256k1 | m/44'/144'/0'/0/0 | BIP-44 compatible |
+| Litecoin | 2 | secp256k1 | m/44'/2'/0'/0/0 | Standard BIP-44 |
 | Cardano (ADA) | 1815 | ed25519 | m/1852'/1815'/0'/0/0 | Uses CIP-1852 |
 | TRON | 195 | secp256k1 | m/44'/195'/0'/0/0 | ETH-style derivation |
-| Cronos (CRO) | 394 | secp256k1 | m/44'/394'/0'/0/0 | BIP-44 compatible |
-| Quant (QNT) | 1110 | secp256k1 | m/44'/1110'/0'/0/0 | Standard |
-| Hedera (HBAR) | 3030 | ed25519 | m/44'/3030'/0'/0'/0' | SLIP-0010 style |
-| TON | N/A | ed25519 | Custom | TON-specific derivation |
-| Stellar (XLM) | 148 | ed25519 | m/44'/148'/0' | SLIP-0010 style |
-| Algorand | 283 | ed25519 | m/44'/283'/0'/0'/0' | SLIP-0010 style |
-| Cosmos | 118 | secp256k1 | m/44'/118'/0'/0/0 | Standard BIP-44 |
-| Binance BNB | 714 | secp256k1 | m/44'/714'/0'/0/0 | BEP-44 compatible |
-| Litecoin | 2 | secp256k1 | m/44'/2'/0'/0/0 | Standard BIP-44 |
 | Polygon | 966 | secp256k1 | m/44'/966'/0'/0/0 | ETH-compatible |
+| Optimism | N/A | secp256k1 | m/44'/60'/0'/0/0 | Uses ETH derivation |
+| Cronos (CRO) | 394 | secp256k1 | m/44'/394'/0'/0/0 | BIP-44 compatible |
+| Binance BNB | 714 | secp256k1 | m/44'/714'/0'/0/0 | BEP-44 compatible |
+| Cosmos | 118 | secp256k1 | m/44'/118'/0'/0/0 | Standard BIP-44 |
+| Algorand | 283 | ed25519 | m/44'/283'/0'/0'/0' | SLIP-0010 style |
+| Hedera (HBAR) | 3030 | ed25519 | m/44'/3030'/0'/0'/0' | SLIP-0010 style |
 | Polkadot | 354 | ed25519 | m/44'/354'/0'/0'/0' | SLIP-0010 style |
 | Sui | 784 | ed25519 | m/44'/784'/0'/0'/0' | SLIP-0010 style |
-| Optimism | N/A | secp256k1 | m/44'/60'/0'/0/0 | Uses ETH derivation |
 | IOTA | 4218 | ed25519 | m/44'/4218'/0'/0'/0' | SLIP-0010 style |
+| TON | N/A | ed25519 | Custom | TON-specific derivation |
 | XDC | 550 | secp256k1 | m/44'/550'/0'/0/0 | Standard BIP-44 |
+| Quant (QNT) | 1110 | secp256k1 | m/44'/1110'/0'/0/0 | Standard |
 
 ### Key Standards Support
 - **BIP-32**: Hierarchical Deterministic Wallets

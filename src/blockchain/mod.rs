@@ -6,6 +6,11 @@ pub mod solana;
 pub mod stellar;
 pub mod common;
 
+// Phase 1 blockchain handlers
+pub mod xrp;
+pub mod litecoin;
+pub mod cardano;
+
 pub use common::*;
 
 #[derive(Debug, Clone)]

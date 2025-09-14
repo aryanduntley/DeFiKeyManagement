@@ -44,10 +44,19 @@ pub fn get_blockchain_handler(blockchain: &SupportedBlockchain) -> Result<Box<dy
         SupportedBlockchain::Stellar => {
             Box::new(crate::blockchain::stellar::StellarHandler::new())
         },
-        // Cardano and other chains - placeholder for now
+        // Phase 1 blockchain handlers
+        SupportedBlockchain::XRP => {
+            Box::new(crate::blockchain::xrp::XrpHandler::new())
+        },
+        SupportedBlockchain::Litecoin => {
+            Box::new(crate::blockchain::litecoin::LitecoinHandler::new())
+        },
+        SupportedBlockchain::Cardano => {
+            Box::new(crate::blockchain::cardano::CardanoHandler::new())
+        },
+        // Remaining chains - placeholder for future phases
         _ => {
-            // For now, unsupported chains will use a placeholder
-            // TODO: Implement remaining blockchain handlers
+            // TODO: Awaiting full implementation for remaining blockchains
             return Err(anyhow::anyhow!("Blockchain handler not yet implemented: {:?}", blockchain));
         }
     })
