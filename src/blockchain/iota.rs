@@ -1,6 +1,8 @@
 use anyhow::{Result, Context};
 use crate::blockchain::{BlockchainHandler, WalletKeys};
 use crate::crypto::ed25519_utils::{derive_ed25519_key_from_mnemonic, private_key_to_public_key_ed25519};
+use iota_sdk::types::block::address::{Address, Ed25519Address, Bech32Address};
+use iota_sdk::client::constants::IOTA_BECH32_HRP;
 
 pub struct IotaHandler;
 
@@ -14,34 +16,31 @@ impl IotaHandler {
             anyhow::bail!("IOTA public key must be 32 bytes, got {}", public_key_bytes.len());
         }
 
-        // TODO: Implement IOTA Bech32 address generation
-        // 1. Hash the ed25519 public key (likely SHA-256 or IOTA-specific hash)
-        // 2. Use bech32 crate to encode with "iota" HRP (human-readable part)
-        // 3. Return Bech32-encoded address string
-        //
-        // Process: ed25519 public key → hash → Bech32 encode with "iota" HRP
-        // Reference: IOTA uses Bech32 addresses with "iota" prefix for mainnet
+        // Use official IOTA SDK for address generation
+        // Create Ed25519Address from public key bytes
+        let ed25519_address = Ed25519Address::new(
+            public_key_bytes.try_into()
+                .context("Failed to convert public key to 32-byte array")?
+        );
 
-        // Placeholder implementation - will be replaced with proper Bech32 encoding
-        use sha2::{Sha256, Digest};
-        let mut hasher = Sha256::new();
-        hasher.update(public_key_bytes);
-        let hash = hasher.finalize();
+        // Convert to Address enum
+        let address = Address::Ed25519(ed25519_address);
 
-        // Temporary placeholder - will use bech32 crate with "iota" HRP
-        let address = format!("iota1{}", hex::encode(&hash[..20])); // Placeholder format
-        Ok(address)
+        // Create Bech32Address with IOTA mainnet HRP
+        let bech32_address = Bech32Address::new(IOTA_BECH32_HRP, address);
+
+        // Convert to string
+        Ok(bech32_address.to_string())
     }
 
     fn validate_iota_address(&self, address: &str) -> bool {
-        // TODO: Implement IOTA Bech32 address validation
-        // 1. Check if address starts with "iota" (mainnet HRP)
-        // 2. Use bech32 crate to decode and validate checksum
-        // 3. Verify decoded data format and length
-        // 4. Return validation result
-
-        // Placeholder validation - will be replaced with bech32 validation
-        address.starts_with("iota1") && address.len() >= 40
+        // Use official IOTA SDK address validation
+        // Try to parse as Bech32Address and check if it's valid IOTA address
+        if let Ok(bech32_addr) = address.parse::<Bech32Address>() {
+            *bech32_addr.hrp() == IOTA_BECH32_HRP && matches!(bech32_addr.inner(), Address::Ed25519(_))
+        } else {
+            false
+        }
     }
 }
 
@@ -72,12 +71,12 @@ impl BlockchainHandler for IotaHandler {
         // Generate IOTA address from public key
         let address = self.public_key_to_address(&public_key_bytes)?;
 
-        Ok(WalletKeys {
-            private_key: hex::encode(&private_key_bytes),
-            public_key: hex::encode(&public_key_bytes),
+        Ok(WalletKeys::new_simple(
+            hex::encode(&private_key_bytes),
+            hex::encode(&public_key_bytes),
             address,
             derivation_path,
-        })
+        ))
     }
 
     fn derive_from_private_key(&self, private_key_hex: &str) -> Result<WalletKeys> {
@@ -95,12 +94,12 @@ impl BlockchainHandler for IotaHandler {
         // Generate IOTA address from public key
         let address = self.public_key_to_address(&public_key_bytes)?;
 
-        Ok(WalletKeys {
-            private_key: hex::encode(&private_key_bytes),
-            public_key: hex::encode(&public_key_bytes),
+        Ok(WalletKeys::new_simple(
+            hex::encode(&private_key_bytes),
+            hex::encode(&public_key_bytes),
             address,
-            derivation_path: "Imported from private key".to_string(),
-        })
+            "Imported from private key".to_string(),
+        ))
     }
 
     fn validate_address(&self, address: &str) -> bool {

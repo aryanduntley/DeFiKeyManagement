@@ -35,12 +35,12 @@ impl BlockchainHandler for StellarHandler {
         // Generate Stellar address from public key
         let address = self.public_key_to_address(&public_key_bytes)?;
         
-        Ok(WalletKeys {
-            private_key: hex::encode(&private_key_bytes),
-            public_key: hex::encode(&public_key_bytes),
+        Ok(WalletKeys::new_simple(
+            hex::encode(&private_key_bytes),
+            hex::encode(&public_key_bytes),
             address,
             derivation_path,
-        })
+        ))
     }
     
     fn derive_from_private_key(&self, private_key: &str) -> Result<WalletKeys> {
@@ -64,12 +64,12 @@ impl BlockchainHandler for StellarHandler {
         // Generate Stellar address
         let address = self.public_key_to_address(&public_key_bytes)?;
         
-        Ok(WalletKeys {
-            private_key: hex::encode(&private_key_bytes),
-            public_key: hex::encode(&public_key_bytes),
+        Ok(WalletKeys::new_simple(
+            hex::encode(&private_key_bytes),
+            hex::encode(&public_key_bytes),
             address,
-            derivation_path: "imported".to_string(),
-        })
+            "imported".to_string(),
+        ))
     }
     
     fn validate_address(&self, address: &str) -> bool {

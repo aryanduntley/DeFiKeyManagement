@@ -60,6 +60,7 @@ pub fn execute(args: DeriveArgs, db: &Database) -> Result<()> {
             label: Some(format!("{}_{}_{}", args.blockchain, args.account, address_index)),
             blockchain: args.blockchain.clone(),
             address: wallet_keys.address.clone(),
+            address_with_checksum: wallet_keys.address_with_checksum.clone(),
             public_key: Some(wallet_keys.public_key.clone()),
             private_key: wallet_keys.private_key.clone(),
             mnemonic: Some(normalized_mnemonic.clone()),
@@ -71,6 +72,8 @@ pub fn execute(args: DeriveArgs, db: &Database) -> Result<()> {
             explorer_url: Some(explorer_url.clone()),
             imported_at: Utc::now(),
             notes: None,
+            additional_data: wallet_keys.additional_data.clone(),
+            secondary_addresses: wallet_keys.secondary_addresses.clone(),
         };
 
         // Insert into database

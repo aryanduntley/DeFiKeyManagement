@@ -1,6 +1,7 @@
 use anyhow::{Result, Context};
 use crate::blockchain::{BlockchainHandler, WalletKeys};
 use crate::crypto::ed25519_utils::{derive_ed25519_key_from_mnemonic, private_key_to_public_key_ed25519};
+use tonlib_core::{TonAddress, TonHash};
 
 pub struct TonHandler;
 
@@ -14,48 +15,31 @@ impl TonHandler {
             anyhow::bail!("TON public key must be 32 bytes, got {}", public_key_bytes.len());
         }
 
-        // TODO: Implement TON address generation using tonlib-core
-        // 1. Use tonlib_core::TonAddress for address generation from ed25519 public key
-        // 2. Use tonlib_core::wallet module for key management functionality
-        // 3. Reference tonlib_core::types for TON-specific type definitions
-        // 4. Return TON address string using TonAddress methods
-        //
-        // Key components from tonlib-core:
-        // - TonAddress: Direct address support (re-exported at crate root)
-        // - TonAddressParseError: Address validation errors
-        // - wallet module: Dedicated wallet functionality for key management
-        // - types module: Core TON type definitions
-        //
-        // Note: TON uses custom derivation, not standard BIP-44
+        // Use tonlib-core for proper TON address generation
+        // TON addresses are derived from public keys using specific TON algorithms
 
-        // Placeholder implementation - will be replaced with tonlib-core
-        let address = format!("EQ{}", hex::encode(&public_key_bytes[..20])); // Temporary TON-like format
-        Ok(address)
+        // Create TonHash from public key bytes
+        let hash_bytes: [u8; 32] = public_key_bytes.try_into()
+            .context("Failed to convert public key to 32-byte array")?;
+        let ton_hash = TonHash::from(hash_bytes);
+
+        // Create TON address with workchain 0 (mainnet) and the hash
+        let ton_address = TonAddress::new(0, ton_hash);
+
+        // Convert to base64 URL format (standard TON address format)
+        Ok(ton_address.to_base64_url())
     }
 
     fn validate_ton_address(&self, address: &str) -> bool {
-        // TODO: Implement TON address validation using tonlib-core
-        // 1. Use tonlib_core::TonAddress::from_str() or similar parsing method
-        // 2. Handle TonAddressParseError for validation failures
-        // 3. Check address format (TON addresses typically start with EQ, UQ, etc.)
-        // 4. Validate checksum and format using tonlib-core functionality
-        // 5. Return validation result
-
-        // Placeholder validation - will be replaced with tonlib-core validation
-        (address.starts_with("EQ") || address.starts_with("UQ")) && address.len() >= 40
+        // Use tonlib-core for proper TON address validation
+        // The library handles parsing and validation of TON address formats
+        TonAddress::from_base64_url(address).is_ok()
     }
 
     fn derive_from_mnemonic_ton(&self, mnemonic: &str, passphrase: Option<&str>) -> Result<WalletKeys> {
-        // TODO: Implement TON-specific mnemonic derivation using tonlib-core
-        // 1. Use tonlib_core::wallet module for mnemonic handling
-        // 2. Generate keypair using TON's custom derivation (not BIP-44)
-        // 3. Use TonAddress for address generation from derived keys
-        // 4. Return WalletKeys with TON-specific derivation path
-        //
-        // Note: TON uses custom derivation path, not m/44'/607'/0'/0'
-
-        // Fallback to our standard SLIP-0010 derivation for now
-        let derivation_path = "m/44'/607'/0'/0'/0'"; // Placeholder path
+        // TON uses a custom derivation approach, but we'll use SLIP-0010 as a fallback
+        // since tonlib-core focuses more on address handling than mnemonic derivation
+        let derivation_path = "m/44'/607'/0'/0'/0'"; // TON coin type 607
 
         let (private_key_bytes, public_key_bytes) = derive_ed25519_key_from_mnemonic(
             mnemonic,
@@ -65,12 +49,12 @@ impl TonHandler {
 
         let address = self.public_key_to_address(&public_key_bytes)?;
 
-        Ok(WalletKeys {
-            private_key: hex::encode(&private_key_bytes),
-            public_key: hex::encode(&public_key_bytes),
+        Ok(WalletKeys::new_simple(
+            hex::encode(&private_key_bytes),
+            hex::encode(&public_key_bytes),
             address,
-            derivation_path: "TON custom derivation".to_string(),
-        })
+            derivation_path.to_string(),
+        ))
     }
 }
 
@@ -94,12 +78,12 @@ impl BlockchainHandler for TonHandler {
 
             let address = self.public_key_to_address(&public_key_bytes)?;
 
-            Ok(WalletKeys {
-                private_key: hex::encode(&private_key_bytes),
-                public_key: hex::encode(&public_key_bytes),
+            Ok(WalletKeys::new_simple(
+                hex::encode(&private_key_bytes),
+                hex::encode(&public_key_bytes),
                 address,
-                derivation_path: path.to_string(),
-            })
+                path.to_string(),
+            ))
         } else {
             // Use TON-specific derivation
             self.derive_from_mnemonic_ton(mnemonic, passphrase)
@@ -121,12 +105,12 @@ impl BlockchainHandler for TonHandler {
         // Generate TON address from public key
         let address = self.public_key_to_address(&public_key_bytes)?;
 
-        Ok(WalletKeys {
-            private_key: hex::encode(&private_key_bytes),
-            public_key: hex::encode(&public_key_bytes),
+        Ok(WalletKeys::new_simple(
+            hex::encode(&private_key_bytes),
+            hex::encode(&public_key_bytes),
             address,
-            derivation_path: "Imported from private key".to_string(),
-        })
+            "Imported from private key".to_string(),
+        ))
     }
 
     fn validate_address(&self, address: &str) -> bool {

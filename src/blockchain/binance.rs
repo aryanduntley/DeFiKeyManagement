@@ -70,12 +70,12 @@ impl BlockchainHandler for BinanceHandler {
         // Generate Binance address from public key (EVM-compatible)
         let address = self.public_key_to_address(&public_key_bytes)?;
 
-        Ok(WalletKeys {
+        Ok(WalletKeys::new_simple(
+            hex::encode(&private_key_bytes),
+            hex::encode(&public_key_bytes),
             address,
-            public_key: hex::encode(&public_key_bytes),
-            private_key: hex::encode(&private_key_bytes),
             derivation_path,
-        })
+        ))
     }
 
     fn derive_from_private_key(&self, private_key: &str) -> Result<WalletKeys> {
@@ -99,12 +99,12 @@ impl BlockchainHandler for BinanceHandler {
         // Generate Binance address
         let address = self.public_key_to_address(&public_key_bytes)?;
 
-        Ok(WalletKeys {
+        Ok(WalletKeys::new_simple(
+            hex::encode(&private_key_bytes),
+            hex::encode(&public_key_bytes),
             address,
-            public_key: hex::encode(&public_key_bytes),
-            private_key: hex::encode(&private_key_bytes),
-            derivation_path: "N/A (from private key)".to_string(),
-        })
+            "N/A (from private key)".to_string(),
+        ))
     }
 
     fn validate_address(&self, address: &str) -> bool {

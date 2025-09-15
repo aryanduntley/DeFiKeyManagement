@@ -99,7 +99,7 @@ ss58-registry = "1.51.0"    # SS58 format registry for Polkadot addresses
 # Phase 5 blockchain support
 sui-crypto = "0.0.7"        # Sui cryptographic operations (ed25519 signing/verification)
 sui-sdk-types = "0.0.7"     # Core Sui types including Address struct
-iota-crypto = "0.23.2"      # IOTA ed25519 key operations and SLIP-0010 derivation
+iota-sdk = "1.1.5"          # Official IOTA SDK with complete address and wallet functionality
 tonlib-core = "0.26.1"      # Mature TON core library with focused wallet and address functionality
 
 [dev-dependencies]

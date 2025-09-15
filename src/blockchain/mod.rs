@@ -31,6 +31,9 @@ pub mod sui;
 pub mod iota;
 pub mod ton;
 
+// Phase 6 blockchain handlers
+pub mod xdc;
+
 pub use common::*;
 
 #[derive(Debug, Clone)]
@@ -54,7 +57,6 @@ pub enum SupportedBlockchain {
     Optimism,
     IOTA,
     XDC,
-    Quant,
     TON,
 }
 
@@ -80,7 +82,6 @@ impl SupportedBlockchain {
             "optimism" | "op" => Ok(Self::Optimism),
             "iota" => Ok(Self::IOTA),
             "xdc" => Ok(Self::XDC),
-            "quant" | "qnt" => Ok(Self::Quant),
             "ton" => Ok(Self::TON),
             _ => bail!("Unsupported blockchain: {}", s),
         }
@@ -107,7 +108,6 @@ impl SupportedBlockchain {
             Self::Optimism => Some(60), // Uses ETH derivation
             Self::IOTA => Some(4218),
             Self::XDC => Some(550),
-            Self::Quant => Some(1110),
             Self::TON => None, // Custom derivation
         }
     }
@@ -133,7 +133,6 @@ impl SupportedBlockchain {
             Self::Optimism => format!("m/44'/60'/{}'/{}/{}", account, 0, address_index),
             Self::IOTA => format!("m/44'/4218'/{}'/{}'/{}'", account, 0, address_index),
             Self::XDC => format!("m/44'/550'/{}'/{}/{}", account, 0, address_index),
-            Self::Quant => format!("m/44'/1110'/{}'/{}/{}", account, 0, address_index),
             Self::TON => format!("m/44'/607'/{}'/{}'", account, address_index), // Custom
         }
     }
@@ -167,7 +166,6 @@ impl SupportedBlockchain {
             Self::Optimism => format!("https://optimistic.etherscan.io/address/{}", address),
             Self::IOTA => format!("https://explorer.iota.org/mainnet/addr/{}", address),
             Self::XDC => format!("https://explorer.xinfin.network/address/{}", address),
-            Self::Quant => format!("https://etherscan.io/address/{}", address), // ERC-20
             Self::TON => format!("https://tonscan.org/address/{}", address),
         }
     }

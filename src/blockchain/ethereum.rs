@@ -39,12 +39,12 @@ impl BlockchainHandler for EthereumHandler {
         // Generate Ethereum address from public key
         let address = self.public_key_to_address(&public_key_bytes)?;
         
-        Ok(WalletKeys {
-            private_key: format!("0x{}", hex::encode(&private_key_bytes)),
-            public_key: format!("0x{}", hex::encode(&public_key_bytes)),
+        Ok(WalletKeys::new_simple(
+            format!("0x{}", hex::encode(&private_key_bytes)),
+            format!("0x{}", hex::encode(&public_key_bytes)),
             address,
             derivation_path,
-        })
+        ))
     }
     
     fn derive_from_private_key(&self, private_key: &str) -> Result<WalletKeys> {
@@ -68,12 +68,12 @@ impl BlockchainHandler for EthereumHandler {
         // Generate Ethereum address
         let address = self.public_key_to_address(&public_key_bytes)?;
         
-        Ok(WalletKeys {
-            private_key: format!("0x{}", hex::encode(&private_key_bytes)),
-            public_key: format!("0x{}", hex::encode(&public_key_bytes)),
+        Ok(WalletKeys::new_simple(
+            format!("0x{}", hex::encode(&private_key_bytes)),
+            format!("0x{}", hex::encode(&public_key_bytes)),
             address,
-            derivation_path: "imported".to_string(),
-        })
+            "imported".to_string(),
+        ))
     }
     
     fn validate_address(&self, address: &str) -> bool {
@@ -87,7 +87,6 @@ impl BlockchainHandler for EthereumHandler {
             SupportedBlockchain::Polygon => "polygon",
             SupportedBlockchain::Cronos => "cronos",
             SupportedBlockchain::Optimism => "optimism",
-            SupportedBlockchain::Quant => "quant",
             _ => "ethereum", // Default
         }
     }

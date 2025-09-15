@@ -68,6 +68,7 @@ pub fn execute(args: ImportArgs, db: &Database) -> Result<()> {
         label: args.label.clone(),
         blockchain: args.blockchain.clone(),
         address: wallet_keys.address.clone(),
+        address_with_checksum: wallet_keys.address_with_checksum.clone(),
         public_key: Some(wallet_keys.public_key.clone()),
         private_key: wallet_keys.private_key.clone(),
         mnemonic: args.mnemonic.as_ref().map(|m| normalize_mnemonic(m)),
@@ -79,6 +80,8 @@ pub fn execute(args: ImportArgs, db: &Database) -> Result<()> {
         explorer_url: Some(explorer_url),
         imported_at: Utc::now(),
         notes: None,
+        additional_data: wallet_keys.additional_data.clone(),
+        secondary_addresses: wallet_keys.secondary_addresses.clone(),
     };
 
     // Insert into database
@@ -91,6 +94,28 @@ pub fn execute(args: ImportArgs, db: &Database) -> Result<()> {
     println!("  Label: {}", args.label.as_deref().unwrap_or("(no label)"));
     println!("  Blockchain: {}", args.blockchain);
     println!("  Address: {}", wallet_keys.address);
+
+    // Show checksummed address if available
+    if let Some(checksummed) = &wallet_keys.address_with_checksum {
+        println!("  Address (with checksum): {}", checksummed);
+    }
+
+    // Show secondary addresses if any
+    if !wallet_keys.secondary_addresses.is_empty() {
+        println!("  Secondary addresses:");
+        for (addr_type, addr) in &wallet_keys.secondary_addresses {
+            println!("    {}: {}", addr_type.to_uppercase(), addr);
+        }
+    }
+
+    // Show additional data if any
+    if !wallet_keys.additional_data.is_empty() {
+        println!("  Additional data:");
+        for (key, value) in &wallet_keys.additional_data {
+            println!("    {}: {}", key, value);
+        }
+    }
+
     println!("  Derivation Path: {}", wallet_keys.derivation_path);
     println!("  Explorer: {}", wallet_record.explorer_url.as_deref().unwrap_or("N/A"));
 

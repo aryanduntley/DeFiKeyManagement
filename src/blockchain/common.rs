@@ -1,12 +1,64 @@
 use anyhow::Result;
 use crate::blockchain::SupportedBlockchain;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct WalletKeys {
     pub private_key: String,
     pub public_key: String,
     pub address: String,
+    pub address_with_checksum: Option<String>,   // New: checksummed version
     pub derivation_path: String,
+    pub additional_data: HashMap<String, String>,     // New: blockchain-specific data
+    pub secondary_addresses: HashMap<String, String>, // New: secondary addresses
+}
+
+impl WalletKeys {
+    // Helper constructor for simple wallets without additional data
+    pub fn new_simple(
+        private_key: String,
+        public_key: String,
+        address: String,
+        derivation_path: String,
+    ) -> Self {
+        Self {
+            private_key,
+            public_key,
+            address,
+            address_with_checksum: None,
+            derivation_path,
+            additional_data: HashMap::new(),
+            secondary_addresses: HashMap::new(),
+        }
+    }
+
+    // Helper constructor for wallets with checksummed addresses
+    pub fn new_with_checksum(
+        private_key: String,
+        public_key: String,
+        address: String,
+        address_with_checksum: Option<String>,
+        derivation_path: String,
+    ) -> Self {
+        Self {
+            private_key,
+            public_key,
+            address,
+            address_with_checksum,
+            derivation_path,
+            additional_data: HashMap::new(),
+            secondary_addresses: HashMap::new(),
+        }
+    }
+
+    // Helper methods to add data
+    pub fn add_data(&mut self, key: String, value: String) {
+        self.additional_data.insert(key, value);
+    }
+
+    pub fn add_secondary_address(&mut self, address_type: String, address: String) {
+        self.secondary_addresses.insert(address_type, address);
+    }
 }
 
 pub trait BlockchainHandler {
@@ -90,10 +142,9 @@ pub fn get_blockchain_handler(blockchain: &SupportedBlockchain) -> Result<Box<dy
         SupportedBlockchain::TON => {
             Box::new(crate::blockchain::ton::TonHandler::new())
         },
-        // Remaining chains - placeholder for future phases
-        _ => {
-            // TODO: Awaiting full implementation for remaining blockchains (Phase 6: XDC, Quant)
-            return Err(anyhow::anyhow!("Blockchain handler not yet implemented: {:?}", blockchain));
-        }
+        // Phase 6 blockchain handlers
+        SupportedBlockchain::XDC => {
+            Box::new(crate::blockchain::xdc::XdcHandler::new())
+        },
     })
 }
