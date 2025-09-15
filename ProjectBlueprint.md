@@ -86,7 +86,208 @@
 #### ✅ **Phase 6: Complete (1/1 COMPLETE)**
 - [x] **XDC** - secp256k1, BIP-44 (m/44'/550'/0'/0/0) - *COMPLETE*
 
-**🎊 PROJECT STATUS**: **100% COMPLETE** - All 20/20 native blockchains implemented across 6 phases! **68/68 tests passing**
+**🎊 CORE PROJECT STATUS**: **100% COMPLETE** - All 20/20 native blockchains implemented across 6 phases! **68/68 tests passing**
+
+## 🚀 **NEXT PHASE: ENHANCED MULTI-WALLET SUPPORT**
+
+**Status**: **PLANNING** - Identified need for enhanced multi-wallet functionality based on real-world usage patterns
+
+**Goal**: Transform the tool from individual wallet management to true multi-wallet app support, enabling efficient bulk operations for users managing multiple mnemonic phrases from different wallet applications.
+
+### **Current Multi-Wallet Limitations Identified:**
+
+1. **No Mnemonic Grouping**: Each wallet is stored individually without concept of "wallet groups"
+2. **Manual Per-Blockchain Import**: Must run separate commands for each blockchain
+3. **No Bulk Operations**: No single command to derive all blockchains from one mnemonic
+4. **Limited Multi-Mnemonic Management**: Difficult to manage multiple different mnemonics as distinct wallet collections
+
+### **Enhanced Multi-Wallet Requirements:**
+
+**Primary Use Case**: Users importing mnemonic phrases from multi-wallet apps (MetaMask, Trust Wallet, etc.) need to:
+- Import one mnemonic and automatically derive addresses for all relevant blockchains
+- Manage multiple different mnemonics as separate "wallet groups"
+- Perform bulk operations across wallet groups
+- Efficiently organize and view wallets by their source mnemonic
+
+### **Planned Multi-Wallet Enhancements:**
+
+#### **🏗️ New Architecture Components:**
+- **Wallet Groups**: Concept representing a single mnemonic across multiple blockchains
+- **Group Metadata**: Store group-level information (name, description, creation date)
+- **Enhanced Database Schema**: New `wallet_groups` table with foreign key relationships
+
+#### **🔧 New CLI Commands:**
+- **`import-multi`**: Import mnemonic and derive addresses for all (or selected) blockchains at once
+- **`derive-multi`**: Bulk derive addresses across multiple blockchains for existing mnemonic
+- **`list-groups`**: Show wallet groups with summary information
+- **`show-group`**: Display all wallets within a specific group
+
+#### **⚡ Enhanced Existing Commands:**
+- **`import`**: Add `--group-name` parameter to assign wallets to named groups
+- **`derive`**: Add `--all-blockchains` flag for bulk derivation
+- **`list`**: Add `--group-by-mnemonic` flag to organize output by wallet groups
+- **`export`**: Add group-level export capabilities
+
+#### **🎯 User Experience Improvements:**
+- **Interactive Mode**: Prompt for blockchain selection during multi-import
+- **Progress Indicators**: Show progress during bulk operations
+- **Smart Labeling**: Auto-generate meaningful labels for group-derived wallets
+- **Duplicate Detection**: Prevent duplicate derivations within groups
+
+### **Implementation Strategy:**
+1. **Backward Compatibility**: Maintain existing CLI interface while adding new features
+2. **Efficient Derivation**: Batch operations to minimize redundant mnemonic processing
+3. **Error Handling**: Robust error handling for partial failures in bulk operations
+4. **Transaction Safety**: Database transactions for atomic multi-wallet operations
+
+### **Multi-Wallet Command Examples:**
+
+#### **✅ Import-Multi Command (IMPLEMENTED)**
+```bash
+# Import Bitcoin-only wallet (single blockchain)
+wallet-backup import-multi --mnemonic "word1 word2..." --group-name "Trezor_Bitcoin" \
+  --description "Hardware wallet" --blockchains "bitcoin"
+
+# Import MetaMask with 5 networks (selective multi-blockchain)
+wallet-backup import-multi --mnemonic "word1 word2..." --group-name "MetaMask_Main" \
+  --description "Main MetaMask wallet" --blockchains "ethereum,polygon,binance,optimism,cronos"
+
+# Import with default popular blockchains (if --blockchains not specified)
+wallet-backup import-multi --mnemonic "word1 word2..." --group-name "TrustWallet_DeFi"
+# Defaults to: bitcoin,ethereum,solana,polygon,binance
+```
+
+#### **✅ Implemented Commands (Working)**
+```bash
+# Import Bitcoin-only wallet (single blockchain)
+wallet-backup import-multi --mnemonic "word1 word2..." --group-name "Trezor_Bitcoin" \
+  --description "Hardware wallet" --blockchains "bitcoin"
+
+# Import MetaMask with 5 networks (selective multi-blockchain)
+wallet-backup import-multi --mnemonic "word1 word2..." --group-name "MetaMask_Main" \
+  --description "Main MetaMask wallet" --blockchains "ethereum,polygon,binance,optimism,cronos"
+
+# List all wallet groups with summaries
+wallet-backup list-groups
+```
+
+#### **✅ Implemented and Working**
+```bash
+# Import Bitcoin-only wallet (single blockchain)
+wallet-backup import-multi --mnemonic "word1 word2..." --group-name "Trezor_Bitcoin" \
+  --description "Hardware wallet" --blockchains "bitcoin"
+
+# Import MetaMask with 5 networks (selective multi-blockchain)
+wallet-backup import-multi --mnemonic "word1 word2..." --group-name "MetaMask_Main" \
+  --description "Main MetaMask wallet" --blockchains "ethereum,polygon,binance,optimism,cronos"
+
+# List all wallet groups with summaries
+wallet-backup list-groups
+
+# Show all wallets in a specific group
+wallet-backup show-group "MetaMask_Main" --include-sensitive
+```
+
+#### **🔧 Next Implementation**
+```bash
+# Derive additional addresses for existing group
+wallet-backup derive-multi --group-name "MetaMask_Main" --account 1 --count 5
+```
+
+### **🎯 Implementation Progress:**
+
+#### **✅ Phase 1: Database Foundation - COMPLETED**
+- **Enhanced Database Schema**: ✅ IMPLEMENTED
+  - Added `wallet_groups` table for mnemonic organization
+  - Added `wallet_group_blockchains` table for selective blockchain support
+  - Extended `wallets` table with `group_id` foreign key
+  - Comprehensive indexing for optimal performance
+
+- **Blockchain Validation System**: ✅ IMPLEMENTED
+  - `validate_blockchains()` - batch validation with detailed error reporting
+  - `get_supported_blockchain_names()` - helpful error messages
+  - Supports both single blockchain (Bitcoin wallet) and multi-blockchain (MetaMask) scenarios
+
+- **Wallet Group Management API**: ✅ IMPLEMENTED
+  - `create_or_get_wallet_group()` - creates groups with selective blockchain support
+  - `get_wallet_group_by_name()` - retrieves group information
+  - `get_all_wallet_groups()` - lists all groups with summary data
+  - `get_wallets_by_group_id()` - retrieves all wallets in a group
+  - `add_blockchains_to_group()` - extends existing groups
+  - `delete_wallet_group()` - secure group deletion
+  - SHA-256 mnemonic hashing for privacy protection
+
+#### **🚧 Phase 2: CLI Implementation - IN PROGRESS**
+- **New CLI Commands**:
+  - **✅ `import-multi`** - COMPLETED ✨
+    - **Selective blockchain support**: User specifies exactly which blockchains to derive
+    - **Automatic group creation**: Creates wallet groups with mnemonic hashing for security
+    - **Smart labeling**: Auto-generates meaningful wallet labels (e.g., "MetaMask_bitcoin")
+    - **Progress reporting**: Clear feedback during bulk operations with success/failure counts
+    - **Error handling**: Validates blockchains, detects duplicates, handles individual failures
+    - **Comprehensive output**: Shows detailed results and suggests next steps
+    - **Real-world tested**: Successfully creates Bitcoin+Ethereum+Solana wallets from single mnemonic
+  - **✅ `list-groups`** - COMPLETED ✨
+    - **Clean tabular output**: Group name, blockchains, wallet count, creation date, description
+    - **Smart blockchain display**: Shows "bitcoin, et..." format with "+N more" for many chains
+    - **Proper date formatting**: SQLite datetime parsing with user-friendly display
+    - **Helpful guidance**: Suggests next steps when no groups exist or when viewing results
+    - **Real-world tested**: Successfully displays Test_MetaMask group with 3 wallets
+  - **✅ `show-group`** - COMPLETED ✨
+    - **Comprehensive wallet display**: Shows all wallets within a specific group organized by blockchain
+    - **Rich wallet information**: Address, derivation path, account/index, explorer URLs, labels
+    - **Sensitive data toggle**: `--include-sensitive` flag to show/hide private keys and mnemonics
+    - **Professional formatting**: Tree-structure display with emojis and proper alignment
+    - **Error handling**: Helpful messages for non-existent groups with suggestions for available groups
+    - **Smart organization**: Groups wallets by blockchain with counts and proper hierarchy
+    - **Real-world tested**: Successfully displays Test_MetaMask group with Bitcoin, Ethereum, Solana wallets
+  - **📋 `derive-multi`** - PLANNED - bulk derivation for existing groups
+
+- **Enhanced Existing Commands**: 📋 PLANNED
+  - `import --group-name` - assign individual wallets to groups
+  - `list --group-by-mnemonic` - organize output by groups
+  - `export` with group-level support
+
+### **🏗️ Enhanced Database Architecture:**
+
+```sql
+-- Core wallet groups table
+wallet_groups:
+  id, name (UNIQUE), description, mnemonic_hash, created_at, updated_at
+
+-- Selective blockchain support per group
+wallet_group_blockchains:
+  id, group_id (FK), blockchain, UNIQUE(group_id, blockchain)
+
+-- Enhanced wallets table
+wallets:
+  [existing fields...], group_id (FK) -> wallet_groups(id)
+```
+
+### **🔧 Technical Implementation Details:**
+
+#### **Flexible Blockchain Selection:**
+```rust
+// Supports both single and multi-blockchain scenarios
+let single_blockchain = vec!["bitcoin".to_string()];      // Bitcoin-only wallet
+let multi_blockchain = vec!["ethereum".to_string(), "polygon".to_string(),
+                           "binance".to_string()];         // MetaMask-style wallet
+
+// Validation ensures all requested blockchains are supported
+SupportedBlockchain::validate_blockchains(&blockchains)?;
+```
+
+#### **Security & Privacy:**
+- Mnemonic phrases are SHA-256 hashed before database storage
+- Group mnemonic verification prevents name collisions with different seeds
+- Cascade deletion ensures clean group removal
+
+#### **Performance Optimizations:**
+- Indexed queries for group lookups, blockchain filtering, and wallet retrieval
+- Normalized schema prevents data duplication
+- Efficient joins for group summary information
+
+**Multi-Wallet Enhancement Status**: **DATABASE FOUNDATION COMPLETE** - Core infrastructure implemented, CLI commands in development
 
 ### Supported Blockchains Reference
 

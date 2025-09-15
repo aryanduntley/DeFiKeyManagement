@@ -10,6 +10,9 @@ pub mod export;
 pub mod delete;
 pub mod tag;
 pub mod search;
+pub mod import_multi;
+pub mod list_groups;
+pub mod show_group;
 
 pub use import::*;
 pub use derive::*;
@@ -19,32 +22,77 @@ pub use export::*;
 pub use delete::*;
 pub use tag::*;
 pub use search::*;
+pub use import_multi::*;
+pub use list_groups::*;
+pub use show_group::*;
 
 #[derive(Args)]
 pub struct ImportArgs {
     /// Blockchain network (e.g., bitcoin, ethereum, solana)
     #[arg(short, long)]
     pub blockchain: String,
-    
+
     /// BIP-39 mnemonic seed phrase
     #[arg(short, long)]
     pub mnemonic: Option<String>,
-    
+
     /// Optional passphrase for mnemonic
     #[arg(short, long)]
     pub passphrase: Option<String>,
-    
+
     /// Private key (alternative to mnemonic)
     #[arg(long)]
     pub private_key: Option<String>,
-    
+
     /// Custom derivation path (overrides default)
     #[arg(long)]
     pub custom_path: Option<String>,
-    
+
     /// Wallet label/name
     #[arg(short, long)]
     pub label: Option<String>,
+}
+
+#[derive(Args)]
+pub struct ImportMultiArgs {
+    /// BIP-39 mnemonic seed phrase
+    #[arg(short, long)]
+    pub mnemonic: String,
+
+    /// Wallet group name
+    #[arg(short, long)]
+    pub group_name: String,
+
+    /// Optional group description
+    #[arg(short, long)]
+    pub description: Option<String>,
+
+    /// Comma-separated list of blockchains (e.g., "bitcoin,ethereum,solana")
+    /// If not specified, defaults to: bitcoin,ethereum,solana,polygon,binance
+    #[arg(short, long)]
+    pub blockchains: Option<String>,
+
+    /// Optional passphrase for mnemonic
+    #[arg(short, long)]
+    pub passphrase: Option<String>,
+
+    /// Account index (default: 0)
+    #[arg(long)]
+    pub account: Option<u32>,
+
+    /// Address index (default: 0)
+    #[arg(long)]
+    pub address_index: Option<u32>,
+}
+
+#[derive(Args)]
+pub struct ShowGroupArgs {
+    /// Wallet group name to display
+    pub group_name: String,
+
+    /// Include sensitive data (private keys, mnemonics)
+    #[arg(long)]
+    pub include_sensitive: bool,
 }
 
 #[derive(Args)]
@@ -188,4 +236,16 @@ pub fn handle_tag(args: TagArgs, db: &Database) -> Result<()> {
 
 pub fn handle_search(args: SearchArgs, db: &Database) -> Result<()> {
     search::execute(args, db)
+}
+
+pub fn handle_import_multi(args: ImportMultiArgs, db: &Database) -> Result<()> {
+    import_multi::execute(args, db)
+}
+
+pub fn handle_list_groups(db: &Database) -> Result<()> {
+    list_groups::execute(db)
+}
+
+pub fn handle_show_group(args: ShowGroupArgs, db: &Database) -> Result<()> {
+    show_group::execute(args, db)
 }

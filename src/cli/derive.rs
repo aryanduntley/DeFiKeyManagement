@@ -74,6 +74,7 @@ pub fn execute(args: DeriveArgs, db: &Database) -> Result<()> {
             notes: None,
             additional_data: wallet_keys.additional_data.clone(),
             secondary_addresses: wallet_keys.secondary_addresses.clone(),
+            group_id: None, // For now, no group assignment in basic derive
         };
 
         // Insert into database

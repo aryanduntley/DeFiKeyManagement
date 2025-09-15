@@ -86,6 +86,57 @@ impl SupportedBlockchain {
             _ => bail!("Unsupported blockchain: {}", s),
         }
     }
+
+    /// Validates multiple blockchain names and returns the list of supported ones
+    /// Returns an error with details about unsupported blockchains if any are found
+    pub fn validate_blockchains(blockchain_names: &[String]) -> Result<Vec<Self>> {
+        let mut supported = Vec::new();
+        let mut unsupported = Vec::new();
+
+        for name in blockchain_names {
+            match Self::from_str(name) {
+                Ok(blockchain) => supported.push(blockchain),
+                Err(_) => unsupported.push(name.clone()),
+            }
+        }
+
+        if !unsupported.is_empty() {
+            let supported_list = Self::get_supported_blockchain_names().join(", ");
+            bail!(
+                "Unsupported blockchain(s): {}. Supported blockchains are: {}",
+                unsupported.join(", "),
+                supported_list
+            );
+        }
+
+        Ok(supported)
+    }
+
+    /// Returns a list of all supported blockchain names for help/error messages
+    pub fn get_supported_blockchain_names() -> Vec<String> {
+        vec![
+            "bitcoin".to_string(), "btc".to_string(),
+            "ethereum".to_string(), "eth".to_string(),
+            "solana".to_string(), "sol".to_string(),
+            "stellar".to_string(), "xlm".to_string(),
+            "xrp".to_string(), "ripple".to_string(),
+            "cardano".to_string(), "ada".to_string(),
+            "tron".to_string(), "trx".to_string(),
+            "cronos".to_string(), "cro".to_string(),
+            "hedera".to_string(), "hbar".to_string(),
+            "algorand".to_string(), "algo".to_string(),
+            "cosmos".to_string(), "atom".to_string(),
+            "binance".to_string(), "bnb".to_string(),
+            "litecoin".to_string(), "ltc".to_string(),
+            "polygon".to_string(), "matic".to_string(),
+            "polkadot".to_string(), "dot".to_string(),
+            "sui".to_string(),
+            "optimism".to_string(), "op".to_string(),
+            "iota".to_string(),
+            "xdc".to_string(),
+            "ton".to_string(),
+        ]
+    }
     
     pub fn get_coin_type(&self) -> Option<u32> {
         match self {

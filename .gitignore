@@ -1,1 +1,15 @@
 /target
+
+# Database files - contain sensitive wallet data
+wallets.db
+wallets.db-*
+*.db
+*.db-shm
+*.db-wal
+
+# Backup files - may contain sensitive data
+*.backup
+*.bak
+backup.json
+*-backup.json
+full-backup.json

@@ -23,6 +23,8 @@ struct Cli {
 enum Commands {
     /// Import a wallet from mnemonic or private key
     Import(ImportArgs),
+    /// Import multiple wallets from one mnemonic across selected blockchains
+    ImportMulti(ImportMultiArgs),
     /// Derive keys/addresses from mnemonic
     Derive(DeriveArgs),
     /// List all stored wallets
@@ -45,6 +47,10 @@ enum Commands {
     Tag(TagArgs),
     /// Search wallets
     Search(SearchArgs),
+    /// List wallet groups
+    ListGroups,
+    /// Show detailed information for a wallet group
+    ShowGroup(ShowGroupArgs),
 }
 
 fn main() -> Result<()> {
@@ -56,6 +62,7 @@ fn main() -> Result<()> {
     // Execute command
     match cli.command {
         Commands::Import(args) => handle_import(args, &db),
+        Commands::ImportMulti(args) => handle_import_multi(args, &db),
         Commands::Derive(args) => handle_derive(args, &db),
         Commands::List => handle_list(&db),
         Commands::Show(args) => handle_show(args, &db),
@@ -71,5 +78,7 @@ fn main() -> Result<()> {
         Commands::Delete(args) => handle_delete(args, &db),
         Commands::Tag(args) => handle_tag(args, &db),
         Commands::Search(args) => handle_search(args, &db),
+        Commands::ListGroups => handle_list_groups(&db),
+        Commands::ShowGroup(args) => handle_show_group(args, &db),
     }
 }
