@@ -1,9 +1,9 @@
 use anyhow::{Result, Context};
 use crate::blockchain::{BlockchainHandler, WalletKeys, SupportedBlockchain};
 use crate::crypto::bip32::{derive_secp256k1_key_from_mnemonic, private_key_to_public_key_secp256k1};
-use k256::ecdsa::SigningKey;
-use sha3::{Keccak256, Digest};
-use std::str::FromStr;
+use alloy_primitives::{Address, keccak256};
+use k256::ecdsa::VerifyingKey;
+use k256::elliptic_curve::sec1::ToEncodedPoint;
 
 pub struct EthereumHandler {
     blockchain: SupportedBlockchain,
@@ -77,12 +77,8 @@ impl BlockchainHandler for EthereumHandler {
     }
     
     fn validate_address(&self, address: &str) -> bool {
-        if !address.starts_with("0x") || address.len() != 42 {
-            return false;
-        }
-        
-        // Check if it's valid hex
-        hex::decode(&address[2..]).is_ok()
+        // Use alloy-primitives Address parsing for proper validation
+        Address::parse_checksummed(address, None).is_ok()
     }
     
     fn get_blockchain_name(&self) -> &'static str {
@@ -99,78 +95,27 @@ impl BlockchainHandler for EthereumHandler {
 
 impl EthereumHandler {
     fn public_key_to_address(&self, public_key_bytes: &[u8]) -> Result<String> {
-        if public_key_bytes.len() != 33 && public_key_bytes.len() != 65 {
-            return Err(anyhow::anyhow!("Invalid public key length for Ethereum"));
-        }
-        
-        // Convert compressed public key to uncompressed if needed
-        let uncompressed_key = if public_key_bytes.len() == 33 {
-            self.decompress_public_key(public_key_bytes)?
-        } else {
-            public_key_bytes.to_vec()
-        };
-        
-        // Skip the first byte (0x04) and take the remaining 64 bytes
-        if uncompressed_key.len() != 65 || uncompressed_key[0] != 0x04 {
-            return Err(anyhow::anyhow!("Invalid uncompressed public key format"));
-        }
-        
-        let key_bytes = &uncompressed_key[1..];
-        
-        // Compute Keccak256 hash of the public key
-        let mut hasher = Keccak256::new();
-        hasher.update(key_bytes);
-        let hash = hasher.finalize();
-        
-        // Take the last 20 bytes of the hash as the address
-        let address_bytes = &hash[12..];
-        let address = format!("0x{}", hex::encode(address_bytes));
-        
-        // Return checksummed address
-        Ok(self.to_checksum_address(&address))
-    }
-    
-    fn decompress_public_key(&self, compressed_key: &[u8]) -> Result<Vec<u8>> {
-        use k256::elliptic_curve::sec1::FromEncodedPoint;
-        use k256::elliptic_curve::sec1::ToEncodedPoint;
-        use k256::PublicKey;
-        
-        let public_key = PublicKey::from_sec1_bytes(compressed_key)
-            .context("Failed to parse compressed public key")?;
-        
-        let uncompressed = public_key.to_encoded_point(false);
-        Ok(uncompressed.as_bytes().to_vec())
-    }
-    
-    /// Convert address to EIP-55 checksummed format
-    fn to_checksum_address(&self, address: &str) -> String {
-        let address_lower = address.to_lowercase();
-        let address_hex = if address_lower.starts_with("0x") {
-            &address_lower[2..]
-        } else {
-            &address_lower
-        };
-        
-        let mut hasher = Keccak256::new();
-        hasher.update(address_hex.as_bytes());
-        let hash = hasher.finalize();
-        
-        let mut checksummed = String::from("0x");
-        for (i, c) in address_hex.chars().enumerate() {
-            if c.is_ascii_alphabetic() {
-                let hash_byte = hash[i / 2];
-                let nibble = if i % 2 == 0 { hash_byte >> 4 } else { hash_byte & 0xf };
-                if nibble >= 8 {
-                    checksummed.push(c.to_ascii_uppercase());
-                } else {
-                    checksummed.push(c);
-                }
-            } else {
-                checksummed.push(c);
-            }
-        }
-        
-        checksummed
+        // Convert compressed public key to uncompressed format using k256
+        let verifying_key = VerifyingKey::from_sec1_bytes(public_key_bytes)
+            .context("Invalid public key for Ethereum address generation")?;
+
+        let uncompressed_point = verifying_key.to_encoded_point(false);
+        let uncompressed_bytes = uncompressed_point.as_bytes();
+
+        // Remove the 0x04 prefix (first byte) to get the 64-byte coordinate pair
+        let public_key_hash_input = &uncompressed_bytes[1..];
+
+        // Compute Keccak256 hash using alloy-primitives
+        let hash = keccak256(public_key_hash_input);
+
+        // Take the last 20 bytes as the address
+        let address_bytes: [u8; 20] = hash[12..].try_into()
+            .context("Failed to extract address bytes from hash")?;
+
+        // Create Address using alloy-primitives (automatically applies EIP-55 checksum)
+        let address = Address::from(address_bytes);
+
+        Ok(address.to_string())
     }
 }
 
@@ -212,9 +157,9 @@ mod tests {
     fn test_address_validation() {
         let handler = EthereumHandler::new(SupportedBlockchain::Ethereum);
         
-        // Valid addresses
-        assert!(handler.validate_address("0x742d35Cc6634C0532925a3b8D322C8e1c6a331cb"));
-        assert!(handler.validate_address("0x0000000000000000000000000000000000000000"));
+        // Valid addresses with proper EIP-55 checksums
+        assert!(handler.validate_address("0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"));
+        assert!(handler.validate_address("0x0000000000000000000000000000000000000000")); // All zeros
         
         // Invalid addresses
         assert!(!handler.validate_address("invalid_address"));
@@ -223,15 +168,24 @@ mod tests {
     }
     
     #[test]
-    fn test_checksum_address() {
+    fn test_address_checksum() {
         let handler = EthereumHandler::new(SupportedBlockchain::Ethereum);
-        let address = "0x742d35cc6634c0532925a3b8d322c8e1c6a331cb";
-        let checksummed = handler.to_checksum_address(address);
-        
-        // Should have mixed case for checksum
-        assert!(checksummed.contains(char::is_uppercase));
-        assert!(checksummed.contains(char::is_lowercase));
-        assert_eq!(checksummed.len(), 42);
-        assert!(checksummed.starts_with("0x"));
+
+        // Test with a known private key to generate an address
+        let private_key = "1e99423a4ed27608a15a2616a2b0e9e52ced330ac530edcc32c8ffc6a526aedd";
+        let result = handler.derive_from_private_key(private_key);
+        assert!(result.is_ok());
+
+        let keys = result.unwrap();
+        println!("Generated Ethereum address: {}", keys.address);
+
+        // Address should have proper EIP-55 checksum (mixed case)
+        assert!(keys.address.chars().skip(2).any(|c| c.is_ascii_uppercase()));
+        assert!(keys.address.chars().skip(2).any(|c| c.is_ascii_lowercase()));
+        assert_eq!(keys.address.len(), 42);
+        assert!(keys.address.starts_with("0x"));
+
+        // Should validate correctly
+        assert!(handler.validate_address(&keys.address));
     }
 }

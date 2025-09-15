@@ -11,6 +11,26 @@ pub mod xrp;
 pub mod litecoin;
 pub mod cardano;
 
+// Phase 2 blockchain handlers
+pub mod tron;
+pub mod polygon;
+pub mod optimism;
+
+// Phase 3 blockchain handlers
+pub mod cronos;
+pub mod binance;
+pub mod cosmos;
+
+// Phase 4 blockchain handlers
+pub mod algorand;
+pub mod hedera;
+pub mod polkadot;
+
+// Phase 5 blockchain handlers
+pub mod sui;
+pub mod iota;
+pub mod ton;
+
 pub use common::*;
 
 #[derive(Debug, Clone)]

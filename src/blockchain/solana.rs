@@ -1,8 +1,9 @@
 use anyhow::{Result, Context};
 use crate::blockchain::{BlockchainHandler, WalletKeys, SupportedBlockchain};
 use crate::crypto::ed25519_utils::{derive_ed25519_key_from_mnemonic, private_key_to_public_key_ed25519};
-use ed25519_dalek::{SigningKey, VerifyingKey};
-use bs58;
+use solana_sdk::pubkey::Pubkey;
+use solana_sdk::signature::{Keypair, Signer};
+use std::str::FromStr;
 
 pub struct SolanaHandler;
 
@@ -33,9 +34,12 @@ impl BlockchainHandler for SolanaHandler {
             &derivation_path,
         )?;
         
-        // For Solana, the address is the base58-encoded public key
-        let address = bs58::encode(&public_key_bytes).into_string();
-        
+        // Create Solana Pubkey from public key bytes
+        let pubkey_bytes: [u8; 32] = public_key_bytes.clone().try_into()
+            .map_err(|_| anyhow::anyhow!("Invalid public key length for Solana"))?;
+        let pubkey = Pubkey::from(pubkey_bytes);
+        let address = pubkey.to_string();
+
         Ok(WalletKeys {
             private_key: hex::encode(&private_key_bytes),
             public_key: hex::encode(&public_key_bytes),
@@ -62,9 +66,12 @@ impl BlockchainHandler for SolanaHandler {
         // Derive public key
         let public_key_bytes = private_key_to_public_key_ed25519(&private_key_bytes)?;
         
-        // Generate Solana address (base58-encoded public key)
-        let address = bs58::encode(&public_key_bytes).into_string();
-        
+        // Create Solana Pubkey from public key bytes
+        let pubkey_bytes: [u8; 32] = public_key_bytes.clone().try_into()
+            .map_err(|_| anyhow::anyhow!("Invalid public key length for Solana"))?;
+        let pubkey = Pubkey::from(pubkey_bytes);
+        let address = pubkey.to_string();
+
         Ok(WalletKeys {
             private_key: hex::encode(&private_key_bytes),
             public_key: hex::encode(&public_key_bytes),
@@ -74,11 +81,8 @@ impl BlockchainHandler for SolanaHandler {
     }
     
     fn validate_address(&self, address: &str) -> bool {
-        // Solana addresses are 32-byte public keys encoded in base58
-        match bs58::decode(address).into_vec() {
-            Ok(decoded) => decoded.len() == 32,
-            Err(_) => false,
-        }
+        // Use official Solana SDK for address validation
+        Pubkey::from_str(address).is_ok()
     }
     
     fn get_blockchain_name(&self) -> &'static str {
@@ -87,28 +91,31 @@ impl BlockchainHandler for SolanaHandler {
 }
 
 impl SolanaHandler {
-    /// Convert private key bytes to Solana's keypair format (private + public key concatenated)
-    pub fn private_key_to_keypair_bytes(&self, private_key_bytes: &[u8]) -> Result<Vec<u8>> {
+    /// Create Solana Keypair from private key bytes
+    pub fn private_key_to_keypair(&self, private_key_bytes: &[u8]) -> Result<Keypair> {
         if private_key_bytes.len() != 32 {
             return Err(anyhow::anyhow!("Invalid private key length for Solana keypair"));
         }
-        
+
         let public_key_bytes = private_key_to_public_key_ed25519(private_key_bytes)?;
-        
+
         // Solana keypair format: 64 bytes (32 private + 32 public)
-        let mut keypair = Vec::with_capacity(64);
-        keypair.extend_from_slice(private_key_bytes);
-        keypair.extend_from_slice(&public_key_bytes);
-        
-        Ok(keypair)
+        let mut keypair_bytes = Vec::with_capacity(64);
+        keypair_bytes.extend_from_slice(private_key_bytes);
+        keypair_bytes.extend_from_slice(&public_key_bytes);
+
+        let secret_key: [u8; 32] = keypair_bytes[0..32].try_into()
+            .map_err(|_| anyhow::anyhow!("Invalid secret key length"))?;
+        Ok(Keypair::new_from_array(secret_key))
     }
     
     /// Generate Solana keypair in the format expected by Solana CLI tools
     pub fn to_solana_cli_format(&self, private_key_bytes: &[u8]) -> Result<String> {
-        let keypair_bytes = self.private_key_to_keypair_bytes(private_key_bytes)?;
-        
+        let keypair = self.private_key_to_keypair(private_key_bytes)?;
+
         // Solana CLI expects JSON array format
-        let json_array: Vec<u8> = keypair_bytes;
+        let keypair_bytes = keypair.to_bytes();
+        let json_array: Vec<u8> = keypair_bytes.to_vec();
         Ok(serde_json::to_string(&json_array)?)
     }
     
@@ -181,13 +188,14 @@ mod tests {
         let handler = SolanaHandler::new();
         let private_key = hex::decode("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
         
-        // Test keypair bytes generation
-        let keypair_bytes = handler.private_key_to_keypair_bytes(&private_key);
-        assert!(keypair_bytes.is_ok());
-        
-        let keypair = keypair_bytes.unwrap();
-        assert_eq!(keypair.len(), 64);
-        assert_eq!(&keypair[0..32], &private_key);
+        // Test Solana keypair generation
+        let keypair = handler.private_key_to_keypair(&private_key);
+        assert!(keypair.is_ok());
+
+        let kp = keypair.unwrap();
+        let kp_bytes = kp.to_bytes();
+        assert_eq!(kp_bytes.len(), 64);
+        assert_eq!(&kp_bytes[0..32], &private_key);
         
         // Test CLI format conversion
         let cli_format = handler.to_solana_cli_format(&private_key);

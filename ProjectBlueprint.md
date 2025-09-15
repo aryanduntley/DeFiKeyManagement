@@ -22,34 +22,55 @@
 
 **Implementation Strategy**: Working on 3 blockchains at a time for focused development and testing.
 
+**Development Approach**: Prioritizing established Rust libraries over manual implementation to ensure reliability, maintainability, and compatibility with ecosystem standards. Libraries used:
+- **Bitcoin**: `bitcoin = "0.32"` (official Bitcoin library)
+- **Ethereum**: `alloy-primitives = "1.3.1"` (modern Alloy ecosystem, replaces ethers-rs)
+- **Solana**: `solana-sdk = "3.0.0"` (official Solana SDK with proper Pubkey and Keypair types)
+- **Stellar**: `stellar-base = "0.6.0"` (official Stellar library)
+- **XRP**: `xrpl-rust = "1.0.0"` (official XRP library)
+- **Litecoin**: Manual implementation (litcoin library uses Bitcoin network constants)
+- **Cardano**: `pallas-crypto = "0.30"` and `pallas-codec = "0.30"` (Cardano ecosystem libraries)
+- **TRON**: `anychain-tron = "0.2.13"` (official TRON library)
+- **Polygon**: `alloy-primitives = "1.3.1"` (Ethereum-compatible)
+- **Optimism**: `alloy-primitives = "1.3.1"` (Ethereum-compatible)
+- **Cronos**: `alloy-primitives = "1.3.1"` (Ethereum-compatible)
+- **Binance BNB**: `alloy-primitives = "1.3.1"` (Ethereum-compatible)
+- **Cosmos**: `cosmrs = "0.22.0"` (official Cosmos SDK)
+- **Algorand**: `algo_rust_sdk = "1.0.3"` (official Algorand SDK)
+- **Hedera**: `hiero-sdk = "0.40.0"` (official Hedera SDK)
+- **Polkadot**: Custom SS58 implementation using `blake2 = "0.10"` + `bs58 = "0.5"` (anychain-polkadot incompatible with ed25519-dalek v2.2.0)
+- **Sui**: `sui-crypto = "0.0.7"` + `sui-sdk-types = "0.0.7"` (official Sui ecosystem)
+- **IOTA**: `iota-crypto = "0.23.2"` + manual Bech32 encoding using `bech32 = "0.11"`
+- **TON**: `tonlib-core = "0.26.1"` (mature TON core library with focused wallet functionality)
+
 #### ✅ **Phase 0: Foundation (COMPLETED)**
 - [x] **Bitcoin** - secp256k1, BIP-44 (m/44'/0'/0'/0/0) - *COMPLETE*
 - [x] **Ethereum** - secp256k1, BIP-44 (m/44'/60'/0'/0/0) - *COMPLETE*
 - [x] **Solana** - ed25519, SLIP-0010 (m/44'/501'/0'/0') - *COMPLETE*
 - [x] **Stellar (XLM)** - ed25519, SLIP-0010 (m/44'/148'/0') - *COMPLETE*
 
-#### 🚧 **Phase 1: Next 3 (IN PROGRESS)**
-- [ ] **XRP (Ripple)** - secp256k1, BIP-44 (m/44'/144'/0'/0/0) - *TARGET*
-- [ ] **Litecoin** - secp256k1, BIP-44 (m/44'/2'/0'/0/0) - *TARGET*
-- [ ] **Cardano (ADA)** - ed25519, CIP-1852 (m/1852'/1815'/0'/0/0) - *TARGET*
+#### ✅ **Phase 1: Implementation Complete (COMPLETED)**
+- [x] **XRP (Ripple)** - secp256k1, BIP-44 (m/44'/144'/0'/0/0) - *COMPLETE*
+- [x] **Litecoin** - secp256k1, BIP-44 (m/44'/2'/0'/0/0) - *COMPLETE*
+- [x] **Cardano (ADA)** - ed25519, CIP-1852 (m/1852'/1815'/0'/0/0) - *COMPLETE*
 
-#### 📋 **Phase 2: Next 3 (PENDING)**
-- [ ] **TRON** - secp256k1, ETH-style (m/44'/195'/0'/0/0)
-- [ ] **Polygon** - secp256k1, ETH-compatible (m/44'/966'/0'/0/0)
-- [ ] **Optimism** - secp256k1, Uses ETH derivation (m/44'/60'/0'/0/0)
+#### ✅ **Phase 2: Complete (3/3 COMPLETE)**
+- [x] **TRON** - secp256k1, T-prefixed Base58Check addresses (m/44'/195'/0'/0/0) - *COMPLETE*
+- [x] **Polygon** - secp256k1, ETH-compatible (m/44'/966'/0'/0/0) - *COMPLETE*
+- [x] **Optimism** - secp256k1, Uses ETH derivation (m/44'/60'/0'/0/0) - *COMPLETE*
 
-#### 📋 **Phase 3: Next 3 (PENDING)**
-- [ ] **Cronos (CRO)** - secp256k1, BIP-44 (m/44'/394'/0'/0/0)
-- [ ] **Binance BNB** - secp256k1, BEP-44 (m/44'/714'/0'/0/0)
-- [ ] **Cosmos** - secp256k1, BIP-44 (m/44'/118'/0'/0/0)
+#### ✅ **Phase 3: Complete (3/3 COMPLETE)**
+- [x] **Cronos (CRO)** - secp256k1, BIP-44 (m/44'/394'/0'/0/0) - *COMPLETE*
+- [x] **Binance BNB** - secp256k1, BEP-44 (m/44'/714'/0'/0/0) - *COMPLETE*
+- [x] **Cosmos** - secp256k1, BIP-44 (m/44'/118'/0'/0/0) - *COMPLETE*
 
-#### 📋 **Phase 4: Next 3 (PENDING)**
-- [ ] **Algorand** - ed25519, SLIP-0010 (m/44'/283'/0'/0'/0')
-- [ ] **Hedera (HBAR)** - ed25519, SLIP-0010 (m/44'/3030'/0'/0'/0')
-- [ ] **Polkadot** - ed25519, SLIP-0010 (m/44'/354'/0'/0'/0')
+#### ✅ **Phase 4: Complete (3/3 COMPLETE)**
+- [x] **Algorand** - ed25519, SLIP-0010 (m/44'/283'/0'/0'/0') - *COMPLETE*
+- [x] **Hedera (HBAR)** - ed25519, SLIP-0010 (m/44'/3030'/0'/0'/0') - *COMPLETE*
+- [x] **Polkadot** - ed25519, SLIP-0010 (m/44'/354'/0'/0'/0') - *COMPLETE*
 
-#### 📋 **Phase 5: Next 3 (PENDING)**
-- [ ] **Sui** - ed25519, SLIP-0010 (m/44'/784'/0'/0'/0')
+#### 🚧 **Phase 5: In Progress (1/3 COMPLETE)**
+- [x] **Sui** - ed25519, SLIP-0010 (m/44'/784'/0'/0'/0') - *COMPLETE*
 - [ ] **IOTA** - ed25519, SLIP-0010 (m/44'/4218'/0'/0'/0')
 - [ ] **TON** - ed25519, Custom derivation (m/44'/607'/0'/0')
 
@@ -57,7 +78,7 @@
 - [ ] **XDC** - secp256k1, BIP-44 (m/44'/550'/0'/0/0)
 - [ ] **Quant (QNT)** - secp256k1, BIP-44 (m/44'/1110'/0'/0/0)
 
-**Current Focus**: Phase 1 - XRP, Litecoin, Cardano
+**Current Focus**: Phase 5 In Progress - 17/21 blockchains implemented (81% complete). Sui Complete! Next: IOTA and TON
 
 ### Supported Blockchains Reference
 
@@ -70,7 +91,7 @@
 | XRP (Ripple) | 144 | secp256k1 | m/44'/144'/0'/0/0 | BIP-44 compatible |
 | Litecoin | 2 | secp256k1 | m/44'/2'/0'/0/0 | Standard BIP-44 |
 | Cardano (ADA) | 1815 | ed25519 | m/1852'/1815'/0'/0/0 | Uses CIP-1852 |
-| TRON | 195 | secp256k1 | m/44'/195'/0'/0/0 | ETH-style derivation |
+| TRON | 195 | secp256k1 | m/44'/195'/0'/0/0 | T-prefixed Base58Check |
 | Polygon | 966 | secp256k1 | m/44'/966'/0'/0/0 | ETH-compatible |
 | Optimism | N/A | secp256k1 | m/44'/60'/0'/0/0 | Uses ETH derivation |
 | Cronos (CRO) | 394 | secp256k1 | m/44'/394'/0'/0/0 | BIP-44 compatible |
