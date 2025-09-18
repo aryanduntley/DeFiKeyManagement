@@ -13,6 +13,8 @@ pub mod search;
 pub mod import_multi;
 pub mod list_groups;
 pub mod show_group;
+pub mod derive_multi;
+pub mod rename_group;
 
 pub use import::*;
 pub use derive::*;
@@ -25,6 +27,8 @@ pub use search::*;
 pub use import_multi::*;
 pub use list_groups::*;
 pub use show_group::*;
+pub use derive_multi::*;
+pub use rename_group::*;
 
 #[derive(Args)]
 pub struct ImportArgs {
@@ -93,6 +97,48 @@ pub struct ShowGroupArgs {
     /// Include sensitive data (private keys, mnemonics)
     #[arg(long)]
     pub include_sensitive: bool,
+}
+
+#[derive(Args)]
+pub struct DeriveMultiArgs {
+    /// Wallet group name to extend
+    #[arg(short, long)]
+    pub group_name: String,
+
+    /// Comma-separated list of blockchains to add (e.g., "cardano,polkadot,sui")
+    #[arg(short, long)]
+    pub blockchains: String,
+
+    /// BIP-39 mnemonic seed phrase (required to verify group ownership)
+    #[arg(short, long)]
+    pub mnemonic: Option<String>,
+
+    /// Optional passphrase for mnemonic
+    #[arg(short, long)]
+    pub passphrase: Option<String>,
+
+    /// Account index (default: 0)
+    #[arg(long)]
+    pub account: Option<u32>,
+
+    /// Address index (default: 0)
+    #[arg(long)]
+    pub address_index: Option<u32>,
+}
+
+#[derive(Args)]
+pub struct RenameGroupArgs {
+    /// Current group name
+    #[arg(short, long)]
+    pub old_name: String,
+
+    /// New group name
+    #[arg(short, long)]
+    pub new_name: String,
+
+    /// Skip confirmation prompt
+    #[arg(long)]
+    pub force: bool,
 }
 
 #[derive(Args)]
@@ -248,4 +294,12 @@ pub fn handle_list_groups(db: &Database) -> Result<()> {
 
 pub fn handle_show_group(args: ShowGroupArgs, db: &Database) -> Result<()> {
     show_group::execute(args, db)
+}
+
+pub fn handle_derive_multi(args: DeriveMultiArgs, db: &Database) -> Result<()> {
+    derive_multi::execute(args, db)
+}
+
+pub fn handle_rename_group(args: RenameGroupArgs, db: &Database) -> Result<()> {
+    rename_group::execute(args, db)
 }

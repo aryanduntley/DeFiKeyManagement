@@ -51,6 +51,10 @@ enum Commands {
     ListGroups,
     /// Show detailed information for a wallet group
     ShowGroup(ShowGroupArgs),
+    /// Add blockchains to an existing wallet group
+    DeriveMulti(DeriveMultiArgs),
+    /// Rename a wallet group
+    RenameGroup(RenameGroupArgs),
 }
 
 fn main() -> Result<()> {
@@ -80,5 +84,7 @@ fn main() -> Result<()> {
         Commands::Search(args) => handle_search(args, &db),
         Commands::ListGroups => handle_list_groups(&db),
         Commands::ShowGroup(args) => handle_show_group(args, &db),
+        Commands::DeriveMulti(args) => handle_derive_multi(args, &db),
+        Commands::RenameGroup(args) => handle_rename_group(args, &db),
     }
 }

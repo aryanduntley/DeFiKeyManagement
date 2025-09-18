@@ -244,3 +244,82 @@ Do not store mnemonic (obviously)
 Store all results in SQLite:
 Even if derivation path was inferred, log which one was used
 Optional: store fingerprint or hash of mnemonic if needed for deduplication
+
+
+  // KEEP: Root level
+  pub struct MasterAccount { ... }
+
+  // KEEP: Group level  
+  pub struct WalletGroup {
+      pub account_index: u32,  // Auto-assigned
+      // ...
+  }
+
+  // SIMPLIFIED: Direct relationship (no GroupBlockchain needed)
+  pub struct WalletAddress {
+      pub group_id: i64,                   // Direct FK to 
+  wallet_groups
+      pub blockchain: String,              // "bitcoin", 
+  "ethereum" 
+      pub additional_data: HashMap<String, String>,    // ✅ KEEP
+   - blockchain metadata
+      pub secondary_addresses: HashMap<String, String>, // ✅ 
+  KEEP - alt address formats
+      // ... all other fields
+  }
+
+  // KEEP: Metadata tables (unchanged)
+  pub struct WalletAdditionalData { ... }      // For database 
+  storage
+  pub struct WalletSecondaryAddresses { ... }  // For database 
+  storage
+
+
+**CHECK**
+We do not want/need backwards compatibility or legacy code. DB schema can be overwritten. backup copy is in place Old/database/mod.rs. 
+
+**NOTES FROM LAST SESSION:**
+Ok. We have the same issue with defining this address index as we did with the account index. We do not want users jumping around missing the next, overwriting, etc.
+
+account-index (3), address-index (5)
+
+Since the grandchildred are the lowest level (with current tech anyway), we will need a new group for them as well. It will auto increment. Right now we have WalletGroup and WalletAddress. We will need to add AddressGroup as well. WalletAddress will have reference to both WalletGroup and AddressGroup. AddressGroup name will default to "index0". User can create a new address group for a given crytocurrency by --address-name (required).To add an address, --address-name, --blockchain and --wallet-group must be specified. Just as the --wallet-group can be changed, we must allow an option to change --address-name. To change --wallet-group, we should require --account (Master account name). To change --address-name, --new-address-name must be provided along with current --address-name, --wallet-group and --account. A user can get the address-name from the "group" information ( we should be sure to provide that infomation as well. account-index, address-idex 0 and address-index 0 name). For listing all addresses:
+
+Need list commands: list cryptocurrencies, list address-groups (must specify Master account name, Wallet Group name, and blockchain), list wallet-groups (must specify Master account name).
+
+Add-address cannot be used for existing addresses. "index0" address is the default name for all 0 index addresses for any given blockchain. We should actually change this to "btc-0", "eth-0", etc. It's created automatically with the blockchain list from import-multi and/or add-blockchain (currently derive-multi). 
+
+wallet-backup derive-multi --wallet-group "MetaMask_Main" --blockchains "cardano,polkadot" --mnemonic "your original mnemonic phrase"
+We will be changing the cli command "derive-multi" simply to add-blockchain. 
+We will remove the --mnemonic requirement. We already have it in record and adding a blockchain is no security issue. 
+We must include --account.
+
+rename-group --old-name "MetaMask_Main" --new-name "MetaMask_Primary"
+must supply --account (Master account name)
+
+Will add remove commands. These will require original mnemonic, then a disclaimer that the information will be completely removed including all sub-data (if account removal, all groups/blockchains/addresses will be removed, if blockchain all addressess will be removed, etc.) and non-recoverable, are you sure? Must type "I'm sure" for approval.
+
+wallet-backup add-blockchain --account "" --wallet-group "" --blockchains ""
+wallet-backup add-wallet-group --account "" --name ""
+wallet-backup add-address-group --account "" --wallet-group "" --blockchain "" --name ""(required! Unique for account)
+wallet-backup add-address --account "" --wallet-group "" --address-group "" --name ""
+
+wallet-backup rename-wallet-group --account "" --old-name "" --new-name ""
+wallet-backup rename-address-group --account "" --wallet-group "" --old-name "" --new-name ""
+wallet-backup rename-address --account "" --wallet-group "" --address-group "" --old-name|address "" --new-name ""
+
+wallet-backup list-cryptocurrencies
+wallet-backup list-wallet-groups --account ""
+wallet-backup list-address-groups --account "" --wallet-group "" --blockchain ""(optional if empty, lists all blockchains)
+wallet-backup list-addresses --account "" --wallet-group "" --address-group ""
+
+wallet-backup remove-account --account "" --mnemonic ""
+wallet-backup remove-wallet-group --account ""  --wallet-group "" --mnemonic
+wallet-backup remove-address-group --account "" --wallet-group "" --address-group "" --mnemonic ""
+wallet-backup remove-address --account "" --wallet-group "" --address-group "" --address-name|address "" --mnemonic ""
+all removals:
+NOTICE: "... . Type -I'm sure- to continue." - should this be in single quotes " ... 'I'm sure' to continue."?
+
+remove:
+wallet-backup remove-blockchain --account "" --wallet-group "" --address-group "" --mnemonic
+We cannot remove a blockchain this way because there could potentially be several of the same blockchain. User must use remove-address-group to specify

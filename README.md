@@ -125,6 +125,53 @@ Wallet Group Details:
   └─ 🏷️  Label: MetaMask_Main_ethereum
 ```
 
+#### `derive-multi` - Add Blockchains to Existing Group
+Add new blockchains to an existing wallet group.
+
+```bash
+# Add Cardano and Polkadot to existing MetaMask group
+wallet-backup derive-multi \
+  --group-name "MetaMask_Main" \
+  --blockchains "cardano,polkadot" \
+  --mnemonic "your original mnemonic phrase"
+
+# Add multiple blockchains with custom account
+wallet-backup derive-multi \
+  --group-name "TrustWallet" \
+  --blockchains "sui,algorand,cosmos" \
+  --mnemonic "your mnemonic phrase" \
+  --account 1
+```
+
+**Parameters:**
+- `--group-name` (required): Name of existing wallet group to extend
+- `--blockchains` (required): Comma-separated list of blockchains to add
+- `--mnemonic` (required): Original mnemonic phrase (for verification)
+- `--passphrase` (optional): BIP-39 passphrase if used
+- `--account` (optional): Account index (default: 0)
+- `--address-index` (optional): Address index (default: 0)
+
+#### `rename-group` - Rename Wallet Group
+Change the name of an existing wallet group and update associated wallet labels.
+
+```bash
+# Rename a wallet group
+wallet-backup rename-group \
+  --old-name "MetaMask_Main" \
+  --new-name "MetaMask_Primary"
+
+# Rename without confirmation prompt
+wallet-backup rename-group \
+  --old-name "OldName" \
+  --new-name "NewName" \
+  --force
+```
+
+**Parameters:**
+- `--old-name` (required): Current group name
+- `--new-name` (required): New group name
+- `--force` (optional): Skip confirmation prompt
+
 ### Individual Wallet Commands
 
 #### `import` - Import Single Wallet
@@ -362,6 +409,17 @@ wallet-backup show-group "MetaMask_Main"
 
 # 4. View with sensitive data (private keys)
 wallet-backup show-group "MetaMask_Main" --include-sensitive
+
+# 5. Add more blockchains to existing group
+wallet-backup derive-multi \
+  --group-name "MetaMask_Main" \
+  --blockchains "cardano,solana,polkadot" \
+  --mnemonic "your twelve word mnemonic phrase here"
+
+# 6. Rename the group
+wallet-backup rename-group \
+  --old-name "MetaMask_Main" \
+  --new-name "MetaMask_Primary"
 ```
 
 ### Single Wallet Workflow
@@ -378,6 +436,35 @@ wallet-backup list
 
 # 4. Export for backup
 wallet-backup export --format json --output backup.json
+```
+
+### Group Management Workflow
+```bash
+# 1. Create initial group with selected blockchains
+wallet-backup import-multi \
+  --mnemonic "your mnemonic phrase" \
+  --group-name "Portfolio_Main" \
+  --blockchains "bitcoin,ethereum"
+
+# 2. Later, add DeFi blockchains
+wallet-backup derive-multi \
+  --group-name "Portfolio_Main" \
+  --blockchains "polygon,binance,cronos,optimism" \
+  --mnemonic "your mnemonic phrase"
+
+# 3. Add cutting-edge blockchains
+wallet-backup derive-multi \
+  --group-name "Portfolio_Main" \
+  --blockchains "sui,cardano,polkadot,solana" \
+  --mnemonic "your mnemonic phrase"
+
+# 4. Rename for better organization
+wallet-backup rename-group \
+  --old-name "Portfolio_Main" \
+  --new-name "CompletePortfolio_2024"
+
+# 5. View final result
+wallet-backup show-group "CompletePortfolio_2024"
 ```
 
 ### Import from Different Sources
