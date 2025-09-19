@@ -1,7 +1,7 @@
 use anyhow::{Result, bail, Context};
 use chrono::Utc;
 use crate::cli::ImportArgs;
-use crate::database::{Database, WalletRecord};
+use crate::database::{Database, WalletAddress};
 use crate::blockchain::{SupportedBlockchain, get_blockchain_handler};
 use crate::crypto::bip39_utils::{validate_mnemonic_phrase, normalize_mnemonic};
 
@@ -52,7 +52,7 @@ pub fn execute(args: ImportArgs, db: &Database) -> Result<()> {
     }
 
     // Check if wallet already exists
-    if let Some(existing) = db.get_wallet_by_address(&wallet_keys.address)? {
+    if let Some(existing) = db.get_wallet_address_by_address(&wallet_keys.address)? {
         println!("Wallet already exists:");
         println!("  Address: {}", existing.address);
         println!("  Label: {}", existing.label.as_deref().unwrap_or("(no label)"));
@@ -62,31 +62,30 @@ pub fn execute(args: ImportArgs, db: &Database) -> Result<()> {
     // Generate explorer URL
     let explorer_url = blockchain.get_explorer_url(&wallet_keys.address);
 
-    // Create wallet record
-    let wallet_record = WalletRecord {
+    // Create wallet address record
+    let wallet_record = WalletAddress {
         id: None,
-        label: args.label.clone(),
+        wallet_group_id: None, // Will be NULL for orphaned addresses
+        address_group_id: None, // Will be NULL for orphaned addresses
         blockchain: args.blockchain.clone(),
         address: wallet_keys.address.clone(),
         address_with_checksum: wallet_keys.address_with_checksum.clone(),
-        public_key: Some(wallet_keys.public_key.clone()),
         private_key: wallet_keys.private_key.clone(),
-        mnemonic: args.mnemonic.as_ref().map(|m| normalize_mnemonic(m)),
-        passphrase: args.passphrase.clone(),
-        derivation_path: wallet_keys.derivation_path.clone(),
-        account: Some(0), // Default account for mnemonic imports
-        address_index: Some(0), // Default address index
+        public_key: Some(wallet_keys.public_key.clone()),
+        derivation_path: if args.mnemonic.is_some() { Some(wallet_keys.derivation_path.clone()) } else { None },
+        address_index: if args.mnemonic.is_some() { Some(0) } else { None },
+        label: args.label.clone(),
         source_type: if args.mnemonic.is_some() { "mnemonic" } else { "private_key" }.to_string(),
         explorer_url: Some(explorer_url),
         imported_at: Utc::now(),
         notes: None,
+        created_at: Utc::now(),
         additional_data: wallet_keys.additional_data.clone(),
         secondary_addresses: wallet_keys.secondary_addresses.clone(),
-        group_id: None, // For now, no group assignment in basic import
     };
 
-    // Insert into database
-    let wallet_id = db.insert_wallet(&wallet_record)
+    // Insert into database (as orphaned address)
+    let wallet_id = db.create_orphaned_wallet_address(&wallet_record)
         .context("Failed to save wallet to database")?;
 
     // Success message

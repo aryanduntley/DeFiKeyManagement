@@ -1,291 +1,5 @@
-bip 32 39 44
-SLIP-0010
-Need to be able to use my seed phrase from trust wallet or other multi-wallets, and generate private keys for each blockchain I have funds on. Generate a file with private keys for each.
-
-
-Blockchain	Coin Type (SLIP-0044)	Curve	Derivation Path	Notes
-Bitcoin	0	secp256k1	m/44'/0'/0'/0/0	Standard
-Ethereum	60	secp256k1	m/44'/60'/0'/0/0	Standard
-Solana	501	ed25519	m/44'/501'/0'/0'	Uses SLIP-0010, NOT BIP-44
-XRP (Ripple)	144	secp256k1	m/44'/144'/0'/0/0	BIP-44 compatible
-XRP Ledger (incl. XVM) depends on wallet N/A Uses XRPL seed-to-address, not BIP‑44
-
-The XVM coin, also known as Volt, is a cryptocurrency focused on the tokenization of real-world assets (RWA) on the XRP Ledger,
-
-
-TON	❌ Not in SLIP-44	ed25519	Custom	Uses TON-specific derivation
-Cardano (ADA)	1815	ed25519	m/1852'/1815'/0'/0/0	Uses CIP-1852, not BIP-44
-TRON	195	secp256k1	m/44'/195'/0'/0/0	Same as ETH-style derivation
-Cronos (CRO)	394	secp256k1	m/44'/394'/0'/0/0	BIP-44 compatible
-Quant (QNT)	1110	secp256k1	m/44'/1110'/0'/0/0	Standard
-Hedera (HBAR)	3030	ed25519	m/44'/3030'/0'/0'/0'	Uses ed25519 and SLIP-0010-style
-
-
-For ed25519 chains (Solana, Cardano, HBAR, TON), you use SLIP‑0010-compatible paths.
-XRP Ledger (and by extension the XVM token) do not use derivation paths in the BIP‑style—you rely on the wallet’s XRPL-specific seed handling.
-
-What I want is to create a simple command line tool that is self contained and can be used in multiple OS', hopefully all three linux, windows and mac. If can be used in android as well, that would be cool.
-
-I would like simply to be able to enter in a multi wallet  passphrase and generate private and public keys for any given blockchain as well as the wallet address for a specified   blockchain/network/coin/token.
-
-I would like this all to be stored in a sqlite database.
-
-I'm thinking that Rust will be preferable to python for this project as it may be better supported with android  (ndk termux) and smaller size overall.
-
-initial blockchains to tarket bitcoin, ethereum, solana, xrp, xlm, ton, cardano, tron, cronos (evm),  hedera, algorand,  cosmos, binance bnb, litecoin, polygon, polkadot, sui,     optimism, iota, xdc, quant (or as many as possible).
-
-We don't need to worry about RPC. The user can verify balance on their own once they have the address. We can provide a link  │ maybe to an explorer based on the wallet address and network. But the primary purpose of this is for individuals to have fine access to, control over and access to their private keys.
-
-We want to have commands with options. They can include mnemonic(seed phrase), private key, public key, wallet address, etc.
-
-With the full wallet(s) information, they now have full control, locally, of their wallets and keys and can use any app they choose to import their keys and manage their wallets
-
-Take in mnemonics, private keys, or public keys
-Derive addresses
-Organize info in a local SQLite database
-Output backup-friendly data
-Optionally show explorer links (not balances)
-
-🧭 1. Core CLI Purpose
-💡 “Self-sovereign wallet backup and key management tool (multi-chain, offline, local storage).”
-
-🧰 2. Key Wallet Data to Store per Record
-Each wallet/address should have:
-
-Field	Required?	Notes
-Mnemonic	Optional	If user has it — full wallet control
-Passphrase	Optional	Used in BIP-39 for hardened wallets
-Seed	Derived	SHA512 from mnemonic (optional to store)
-Private Key	Required*	Derived or provided
-Public Key	Derived	From private key
-Address	Derived	From public key using chain rules
-Blockchain	Required	e.g. Ethereum, Solana, etc.
-Derivation Path	Required	e.g. m/44'/60'/0'/0/0
-Account/Index	Optional	Helpful if derived from a mnemonic
-Wallet Label	Optional	Friendly name
-Explorer URL	Optional	For convenience — no balance tracking
-Imported At	Auto	Timestamp
-Source Type	Auto	mnemonic, private_key, or public_key
-🖥️ 3. CLI Command and Option Ideas
-🛠️ Top-Level Command Pattern
-wallet-backup <command> [options]
-
-🔤 Available Commands
-Command	Purpose
-import	Add a new wallet (from mnemonic, private key, or public key)
-derive	Derive keys/addresses from mnemonic or private key
-list	List all stored wallets
-show	Display full details for a wallet (safely)
-export	Export one or all wallets to a readable format
-delete	Remove a wallet from the database
-tag	Add/edit label for a wallet
-search	Find wallet by address or label
-📥 import Command
-wallet-backup import --mnemonic "word1 word2 ..." --blockchain ethereum --path "m/44'/60'/0'/0/0" --label "Main ETH"
-OR
-wallet-backup import --private-key 0xabc123... --blockchain ethereum --label "Imported PK"
-OR
-wallet-backup import --public-key 0x04ab... --blockchain bitcoin --path "m/44'/0'/0'/0/0"
-
-🔁 derive Command
-wallet-backup derive --mnemonic "..." --blockchain ethereum --account 0 --index 5
-
-Options:
---passphrase
---path (optional, overrides default)
---count N (derive N addresses)
-
-📋 list Command
-wallet-backup list
-
-
-Shows a table:
-
-Label         Blockchain   Address                                   Path
-------------  -----------  ----------------------------------------  ----------------------
-Main ETH      ethereum     0xABC123...                               m/44'/60'/0'/0/0
-Cold BTC      bitcoin      1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa         m/44'/0'/0'/0/0
-
-🔎 show Command
-wallet-backup show --address 0xABC123
-
-Or:
-wallet-backup show --label "Main ETH"
-
-Shows:
-Mnemonic (if exists)
-Derivation path
-Private/public key
-Address
-Explorer link (e.g. Etherscan)
-You can also add --include-sensitive to show private key and mnemonic explicitly.
-
-🔐 export Command
-wallet-backup export --format json
-
-Options:
---label or --address
---include-sensitive
---output file.txt
-
-🧼 delete Command
-wallet-backup delete --address 0xABC123
-
-Optional: --force to skip confirmation
-
-🔖 tag or label Command
-wallet-backup tag --address 0xABC123 --label "Cold Wallet #2"
-
-🔍 search Command
-wallet-backup search --term "btc"
-
-Searches by:
-Blockchain
-Label
-Address fragment
-
-🧱 4. SQLite Schema Suggestion
-CREATE TABLE wallets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    label TEXT,
-    blockchain TEXT NOT NULL,
-    address TEXT NOT NULL UNIQUE,
-    public_key TEXT,
-    private_key TEXT,
-    mnemonic TEXT,
-    passphrase TEXT,
-    derivation_path TEXT,
-    account INTEGER,
-    index INTEGER,
-    source_type TEXT,
-    explorer_url TEXT,
-    imported_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-💡 Design Suggestions
-Encrypt sensitive fields (private key, mnemonic) if security is a goal
-Store the source (mnemonic/private key/public key) for transparency
-Consider optional metadata for wallet grouping (cold, hot, hardware)
-
-✅ TL;DR: Essential Commands to Start With
-import — Import wallets (mnemonic/private key/public key)
-derive — Generate keys/addresses from mnemonic
-list — View all stored wallets
-show — See full info for a wallet
-export — Backup your data
-delete — Remove a wallet securely
-
-We don't want to require derivation path. That has to be inferred from the other information. We cannot expect the user to know this.
-
-We should require either the passphrase/mnemonic OR the private key. Since private key can be derived from the passphrase/mnemonic. And passphrase is the same as mnemonic so let's just call it mnemonic. Unless you are suggesting that the passphrase and mnemonic are difference???
-ChatGPT said:
-
-Great refinements — and you're 100% right to focus on user-friendliness while still keeping control and precision.
-Let’s walk through your two main points:
-
-✅ 1. Derivation Path Should Be Inferred
-Absolutely — users should not be required to input the derivation path.
-
-🔍 Solution:
-The software should:
-Infer the default derivation path based on the blockchain.
-Use a known list of standard paths (from BIP-44, SLIP-0044, etc.)
-Possibly try multiple derivation paths in fallback mode (e.g., ETH wallets might use m/44'/60'/0'/0, m/44'/60'/0'/0/0, etc.)
-You can provide a flag like --custom-path if they do want to override it.
-
-✅ 2. Mnemonic vs Passphrase — Not the Same Thing
-This is where it's good to clarify some terminology:
-
-Term	What It Is
-Mnemonic	The 12–24 word seed phrase (from BIP-39)
-Passphrase	Optional extra word/phrase added as salt to the mnemonic (a "13th word")
-Seed	Derived from (mnemonic + passphrase) → used to derive keys
-
-💡 Mnemonic is required. Passphrase is optional.
-If no passphrase is provided, use "" (empty string).
-But they are not the same.
-
-🔐 Example:
-Mnemonic:    gravity machine north sort system female filter attitude volume fold club stay
-Passphrase:  correcthorsebatterystaple
-
-This combo will derive completely different keys than if you use no passphrase.
-
-🔒 What Should Be Required?
-✅ Valid User Inputs (one of the following):
-✅ --mnemonic (optionally with --passphrase)
-✅ --private-key
-
-❌ Invalid (and should error out):
-Only --public-key
-Only --address
-
-🧠 CLI Command Examples
-From Mnemonic (default path inferred):
-wallet-backup import --mnemonic "word1 word2 ..." --blockchain ethereum
-
-
-With optional passphrase:
-wallet-backup import --mnemonic "word1 word2 ..." --passphrase "myExtraSalt" --blockchain bitcoin
-
-From Private Key:
-wallet-backup import --private-key 0xabc123... --blockchain solana
-
-The derivation path is irrelevant here; just use it to derive pubkey + address.
-
-🛠 Suggested Internal Flow for import
-If mnemonic is present:
-Use mnemonic + passphrase to generate seed
-Use standard derivation path per blockchain
-Derive private key, public key, address
-If private key is present:
-Derive public key + address
-Do not store mnemonic (obviously)
-Store all results in SQLite:
-Even if derivation path was inferred, log which one was used
-Optional: store fingerprint or hash of mnemonic if needed for deduplication
-
-
-  // KEEP: Root level
-  pub struct MasterAccount { ... }
-
-  // KEEP: Group level  
-  pub struct WalletGroup {
-      pub account_index: u32,  // Auto-assigned
-      // ...
-  }
-
-  // SIMPLIFIED: Direct relationship (no GroupBlockchain needed)
-  pub struct WalletAddress {
-      pub group_id: i64,                   // Direct FK to 
-  wallet_groups
-      pub blockchain: String,              // "bitcoin", 
-  "ethereum" 
-      pub additional_data: HashMap<String, String>,    // ✅ KEEP
-   - blockchain metadata
-      pub secondary_addresses: HashMap<String, String>, // ✅ 
-  KEEP - alt address formats
-      // ... all other fields
-  }
-
-  // KEEP: Metadata tables (unchanged)
-  pub struct WalletAdditionalData { ... }      // For database 
-  storage
-  pub struct WalletSecondaryAddresses { ... }  // For database 
-  storage
-
-
 **CHECK**
 We do not want/need backwards compatibility or legacy code. DB schema can be overwritten. backup copy is in place Old/database/mod.rs. 
-
-**NOTES FROM LAST SESSION:**
-Ok. We have the same issue with defining this address index as we did with the account index. We do not want users jumping around missing the next, overwriting, etc.
-
-account-index (3), address-index (5)
-
-Since the grandchildred are the lowest level (with current tech anyway), we will need a new group for them as well. It will auto increment. Right now we have WalletGroup and WalletAddress. We will need to add AddressGroup as well. WalletAddress will have reference to both WalletGroup and AddressGroup. AddressGroup name will default to "index0". User can create a new address group for a given crytocurrency by --address-name (required).To add an address, --address-name, --blockchain and --wallet-group must be specified. Just as the --wallet-group can be changed, we must allow an option to change --address-name. To change --wallet-group, we should require --account (Master account name). To change --address-name, --new-address-name must be provided along with current --address-name, --wallet-group and --account. A user can get the address-name from the "group" information ( we should be sure to provide that infomation as well. account-index, address-idex 0 and address-index 0 name). For listing all addresses:
-
-Need list commands: list cryptocurrencies, list address-groups (must specify Master account name, Wallet Group name, and blockchain), list wallet-groups (must specify Master account name).
 
 Add-address cannot be used for existing addresses. "index0" address is the default name for all 0 index addresses for any given blockchain. We should actually change this to "btc-0", "eth-0", etc. It's created automatically with the blockchain list from import-multi and/or add-blockchain (currently derive-multi). 
 
@@ -299,27 +13,110 @@ must supply --account (Master account name)
 
 Will add remove commands. These will require original mnemonic, then a disclaimer that the information will be completely removed including all sub-data (if account removal, all groups/blockchains/addresses will be removed, if blockchain all addressess will be removed, etc.) and non-recoverable, are you sure? Must type "I'm sure" for approval.
 
-wallet-backup add-blockchain --account "" --wallet-group "" --blockchains ""
+WalletAddress should be changed to simpley Wallets in the database. WalletAddress is confusing. This table is for wallets.
+
+REMOVE: wallet-backup add-blockchain --account "" --wallet-group "" --blockchains ""
+    REPLACE WITH: wallet-backup add-wallet --account "" --wallet-group "" --blockchain "" --name "" (no more adding multiple. We will later create a csv and/or json importer)
+    ADD: wallet-backup add-standalone-wallet --private-key "" --blockchain "" --name ""
+    ADD: wallet-backup add-account --mnemonic|master-private "" --passphrase? "" --name ""(? = optional)
+    
 wallet-backup add-wallet-group --account "" --name ""
-wallet-backup add-address-group --account "" --wallet-group "" --blockchain "" --name ""(required! Unique for account)
-wallet-backup add-address --account "" --wallet-group "" --address-group "" --name ""
+wallet-backup add-address-group --account "" --wallet-group "" --wallet "" --name ""(required! Unique for account)
+REMOVE: wallet-backup add-address --account "" --wallet-group "" --address-group "" --blockchain "" --name ""
+    REPLACE WITH: wallet-backup add-subwallet --account "" --wallet-group "" --wallet "" --address-group "" --name ""
 
 wallet-backup rename-wallet-group --account "" --old-name "" --new-name ""
 wallet-backup rename-address-group --account "" --wallet-group "" --old-name "" --new-name ""
-wallet-backup rename-address --account "" --wallet-group "" --address-group "" --old-name|address "" --new-name ""
+REMOVE: wallet-backup rename-address --account "" --wallet-group "" --address-group "" --old-name|address "" --new-name ""
+    REPLACE WITH: wallet-backup rename-wallet --account "" --wallet-group "" --old-name|address "" --new-name ""
+    ADD: wallet-backup rename-subwallet --account "" --wallet-group "" --wallet "" --address-group "" --old-name|address "" --new-name ""
 
 wallet-backup list-cryptocurrencies
 wallet-backup list-wallet-groups --account ""
-wallet-backup list-address-groups --account "" --wallet-group "" --blockchain ""(optional if empty, lists all blockchains)
-wallet-backup list-addresses --account "" --wallet-group "" --address-group ""
+wallet-backup list-address-groups --account "" --wallet-group "" --wallet ""
+REMOVE: wallet-backup list-addresses --account "" --wallet-group "" --address-group ""
+    REPLACE WITH: wallet-backup list-subwallets --account "" --wallet-group "" --wallet "" --address-group ""
+    ADD: wallet-backup list-wallets --account "" --wallet-group ""
+    ADD: wallet-backup list-standalone-wallets
 
-wallet-backup remove-account --account "" --mnemonic ""
-wallet-backup remove-wallet-group --account ""  --wallet-group "" --mnemonic
-wallet-backup remove-address-group --account "" --wallet-group "" --address-group "" --mnemonic ""
-wallet-backup remove-address --account "" --wallet-group "" --address-group "" --address-name|address "" --mnemonic ""
+wallet-backup remove-account --account "" --mnemonic|master-private ""
+wallet-backup remove-wallet-group --account ""  --wallet-group "" --mnemonic|master-private
+wallet-backup remove-address-group --account "" --wallet-group "" --address-group "" --mnemonic|master-private ""
+REMOVE: wallet-backup remove-address --account "" --wallet-group "" --address-group "" --address-name|address "" --mnemonic ""
+    REPLACE WITH: wallet-backup remove-wallet --account "" --wallet-group "" --address-name|address "" --mnemonic|master-private ""
+    ADD: wallet-backup remove-subwallet --account "" --wallet-group "" --address-group "" --address-name|address "" --mnemonic|master-private ""
+     ADD: wallet-backup remove-standalone-wallet --address-name|address "" --private-key ""
+
 all removals:
 NOTICE: "... . Type -I'm sure- to continue." - should this be in single quotes " ... 'I'm sure' to continue."?
 
 remove:
 wallet-backup remove-blockchain --account "" --wallet-group "" --address-group "" --mnemonic
 We cannot remove a blockchain this way because there could potentially be several of the same blockchain. User must use remove-address-group to specify
+
+
+When you start with a mnemonic:
+
+  Mnemonic → seed → master private key (m)
+
+  This is the root of everything.
+
+  Child keys from the master
+
+  You can derive as many child private keys as you want, e.g.:
+
+  m/44'/0'/0'...
+  m/44'/0'/1'...
+  m/44'/0'/2'...
+
+
+  Each one can represent a “wallet” in your terminology (e.g., 
+  Dad-work, Dad-personal).
+
+  Grandchildren and beyond
+
+  Each child can have its own children (grandchildren of master).
+
+  E.g., under Dad-work (m/44'/0'/0'), you can derive:
+
+  m/44'/0'/0'/0/0   (first receiving address)
+  m/44'/0'/0'/0/1   (second receiving address)
+  m/44'/0'/0'/1/0   (first change/spending address)
+  \
+  \
+  Master private
+   ├─ Wallet (work)
+   │   ├─ Subwallet (receiving)
+   │   └─ Subwallet (spending)
+   └─ Wallet (personal)
+       ├─ Subwallet (savings)
+       └─ Subwallet (checking)\
+  \
+  Mnemonic → Master Private
+     ├─ Wallet Private 1 (work)
+     │   ├─ Subwallet Private 1.1 (receiving)
+     │   └─ Subwallet Private 1.2 (spending)
+     └─ Wallet Private 2 (personal)
+         ├─ Subwallet Private 2.1 (savings)
+         └─ Subwallet Private 2.2 (checking)\
+  \
+  Mnemonic → Master Private
+     ├─ m/0   = Wallet Private 1 (work)
+     │   ├─ m/0/0 = Subwallet 1.1 (receiving)
+     │   └─ m/0/1 = Subwallet 1.2 (spending)
+     └─ m/1   = Wallet Private 2 (personal)
+         ├─ m/1/0 = Subwallet 2.1 (savings)
+         └─ m/1/1 = Subwallet 2.2 (checking)\
+
+Account: FamilyAccount (mnemonic → master private m)
+  └── Wallet Group: Dad (internal organization only)
+      ├── Wallet: work (m/0 = child private) [bitcoin]
+      │   ├── Address Group: receiving (internal collection)
+      │   │   └── Subwallet: addr1.1 (m/0/0 = grandchild private)
+      │   └── Address Group: spending (internal collection)
+      │       └── Subwallet: addr1.2 (m/0/1 = grandchild private)
+      └── Wallet: personal (m/1 = child private) [bitcoin]
+          ├── Address Group: savings (internal collection)
+          │   └── Subwallet: addr2.1 (m/1/0 = grandchild private)
+          └── Address Group: checking (internal collection)
+              └── Subwallet: addr2.2 (m/1/1 = grandchild private)

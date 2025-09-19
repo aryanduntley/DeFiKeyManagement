@@ -60,6 +60,33 @@ pub enum SupportedBlockchain {
     TON,
 }
 
+impl std::fmt::Display for SupportedBlockchain {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bitcoin => write!(f, "bitcoin"),
+            Self::Ethereum => write!(f, "ethereum"),
+            Self::Solana => write!(f, "solana"),
+            Self::Stellar => write!(f, "stellar"),
+            Self::XRP => write!(f, "xrp"),
+            Self::Cardano => write!(f, "cardano"),
+            Self::Tron => write!(f, "tron"),
+            Self::Cronos => write!(f, "cronos"),
+            Self::Hedera => write!(f, "hedera"),
+            Self::Algorand => write!(f, "algorand"),
+            Self::Cosmos => write!(f, "cosmos"),
+            Self::BinanceBNB => write!(f, "binance"),
+            Self::Litecoin => write!(f, "litecoin"),
+            Self::Polygon => write!(f, "polygon"),
+            Self::Polkadot => write!(f, "polkadot"),
+            Self::Sui => write!(f, "sui"),
+            Self::Optimism => write!(f, "optimism"),
+            Self::IOTA => write!(f, "iota"),
+            Self::XDC => write!(f, "xdc"),
+            Self::TON => write!(f, "ton"),
+        }
+    }
+}
+
 impl SupportedBlockchain {
     pub fn from_str(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {

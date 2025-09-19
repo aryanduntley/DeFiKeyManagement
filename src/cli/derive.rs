@@ -1,7 +1,7 @@
 use anyhow::{Result, Context};
 use chrono::Utc;
 use crate::cli::DeriveArgs;
-use crate::database::{Database, WalletRecord};
+use crate::database::{Database, WalletAddress};
 use crate::blockchain::{SupportedBlockchain, get_blockchain_handler};
 use crate::crypto::bip39_utils::{validate_mnemonic_phrase, normalize_mnemonic};
 

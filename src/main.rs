@@ -21,40 +21,53 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Import a wallet from mnemonic or private key
-    Import(ImportArgs),
-    /// Import multiple wallets from one mnemonic across selected blockchains
-    ImportMulti(ImportMultiArgs),
-    /// Derive keys/addresses from mnemonic
-    Derive(DeriveArgs),
-    /// List all stored wallets
-    List,
-    /// Show detailed wallet information
-    Show(ShowArgs),
-    /// Get wallet by name (alias for show --label)
-    Get {
-        /// Wallet name/label to retrieve
-        name: String,
-        /// Include sensitive data (private key, mnemonic)
-        #[arg(long)]
-        include_sensitive: bool,
-    },
-    /// Export wallet data
-    Export(ExportArgs),
-    /// Delete a wallet
-    Delete(DeleteArgs),
-    /// Update wallet label
-    Tag(TagArgs),
-    /// Search wallets
-    Search(SearchArgs),
-    /// List wallet groups
-    ListGroups,
+    /// Create a new account (hierarchical wallet root)
+    CreateAccount(CreateMasterArgs),
+    /// List all accounts
+    ListAccounts(ListAccountsArgs),
+    /// Create a new wallet group under an account
+    CreateWalletGroup(CreateWalletGroupArgs),
+    /// Add blockchain support to a wallet group
+    AddBlockchain(AddBlockchainArgs),
+    /// List wallet groups for an account
+    ListWalletGroups(ListWalletGroupsArgs),
     /// Show detailed information for a wallet group
-    ShowGroup(ShowGroupArgs),
-    /// Add blockchains to an existing wallet group
-    DeriveMulti(DeriveMultiArgs),
-    /// Rename a wallet group
-    RenameGroup(RenameGroupArgs),
+    ShowWalletGroup(ShowWalletGroupArgs),
+    // TEMPORARILY DISABLED - TO BE REPLACED
+    // /// Import a wallet from mnemonic or private key
+    // Import(ImportArgs),
+    // /// Import multiple wallets from one mnemonic across selected blockchains
+    // ImportMulti(ImportMultiArgs),
+    // /// Derive keys/addresses from mnemonic
+    // Derive(DeriveArgs),
+    // /// List all stored wallets
+    // List,
+    // /// Show detailed wallet information
+    // Show(ShowArgs),
+    // /// Get wallet by name (alias for show --label)
+    // Get {
+    //     /// Wallet name/label to retrieve
+    //     name: String,
+    //     /// Include sensitive data (private key, mnemonic)
+    //     #[arg(long)]
+    //     include_sensitive: bool,
+    // },
+    // /// Export wallet data
+    // Export(ExportArgs),
+    // /// Delete a wallet
+    // Delete(DeleteArgs),
+    // /// Update wallet label
+    // Tag(TagArgs),
+    // /// Search wallets
+    // Search(SearchArgs),
+    // /// List wallet groups
+    // ListGroups,
+    // /// Show detailed information for a wallet group
+    // ShowGroup(ShowGroupArgs),
+    // /// Add blockchains to an existing wallet group
+    // DeriveMulti(DeriveMultiArgs),
+    // /// Rename a wallet group
+    // RenameGroup(RenameGroupArgs),
 }
 
 fn main() -> Result<()> {
@@ -65,26 +78,33 @@ fn main() -> Result<()> {
     
     // Execute command
     match cli.command {
-        Commands::Import(args) => handle_import(args, &db),
-        Commands::ImportMulti(args) => handle_import_multi(args, &db),
-        Commands::Derive(args) => handle_derive(args, &db),
-        Commands::List => handle_list(&db),
-        Commands::Show(args) => handle_show(args, &db),
-        Commands::Get { name, include_sensitive } => {
-            let args = ShowArgs {
-                address: None,
-                label: Some(name),
-                include_sensitive,
-            };
-            handle_show(args, &db)
-        },
-        Commands::Export(args) => handle_export(args, &db),
-        Commands::Delete(args) => handle_delete(args, &db),
-        Commands::Tag(args) => handle_tag(args, &db),
-        Commands::Search(args) => handle_search(args, &db),
-        Commands::ListGroups => handle_list_groups(&db),
-        Commands::ShowGroup(args) => handle_show_group(args, &db),
-        Commands::DeriveMulti(args) => handle_derive_multi(args, &db),
-        Commands::RenameGroup(args) => handle_rename_group(args, &db),
+        Commands::CreateAccount(args) => handle_create_master(args, &db),
+        Commands::ListAccounts(args) => handle_list_accounts(args, &db),
+        Commands::CreateWalletGroup(args) => handle_create_wallet_group(args, &db),
+        Commands::AddBlockchain(args) => handle_add_blockchain(args, &db),
+        Commands::ListWalletGroups(args) => handle_list_wallet_groups(args, &db),
+        Commands::ShowWalletGroup(args) => handle_show_wallet_group(args, &db),
+        // TEMPORARILY DISABLED
+        // Commands::Import(args) => handle_import(args, &db),
+        // Commands::ImportMulti(args) => handle_import_multi(args, &db),
+        // Commands::Derive(args) => handle_derive(args, &db),
+        // Commands::List => handle_list(&db),
+        // Commands::Show(args) => handle_show(args, &db),
+        // Commands::Get { name, include_sensitive } => {
+        //     let args = ShowArgs {
+        //         address: None,
+        //         label: Some(name),
+        //         include_sensitive,
+        //     };
+        //     handle_show(args, &db)
+        // },
+        // Commands::Export(args) => handle_export(args, &db),
+        // Commands::Delete(args) => handle_delete(args, &db),
+        // Commands::Tag(args) => handle_tag(args, &db),
+        // Commands::Search(args) => handle_search(args, &db),
+        // Commands::ListGroups => handle_list_groups(&db),
+        // Commands::ShowGroup(args) => handle_show_group(args, &db),
+        // Commands::DeriveMulti(args) => handle_derive_multi(args, &db),
+        // Commands::RenameGroup(args) => handle_rename_group(args, &db),
     }
 }

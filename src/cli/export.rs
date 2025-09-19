@@ -6,7 +6,7 @@ use crate::database::Database;
 
 pub fn execute(args: ExportArgs, db: &Database) -> Result<()> {
     let wallets = if let Some(address) = &args.address {
-        match db.get_wallet_by_address(address)? {
+        match db.get_wallet_address_by_address(address)? {
             Some(wallet) => vec![wallet],
             None => {
                 println!("Wallet not found: {}", address);
@@ -14,7 +14,7 @@ pub fn execute(args: ExportArgs, db: &Database) -> Result<()> {
             }
         }
     } else if let Some(label) = &args.label {
-        match db.get_wallet_by_label(label)? {
+        match db.get_wallet_address_by_label(label)? {
             Some(wallet) => vec![wallet],
             None => {
                 println!("Wallet not found: {}", label);
@@ -22,7 +22,8 @@ pub fn execute(args: ExportArgs, db: &Database) -> Result<()> {
             }
         }
     } else {
-        db.get_all_wallets()?
+        // For now, get orphaned addresses - this will need updating for hierarchy
+        db.get_orphaned_wallet_addresses()?
     };
     
     if wallets.is_empty() {
@@ -50,14 +51,14 @@ pub fn execute(args: ExportArgs, db: &Database) -> Result<()> {
     Ok(())
 }
 
-fn export_json(wallets: &[crate::database::WalletRecord], include_sensitive: bool) -> Result<String> {
+fn export_json(wallets: &[crate::database::WalletAddress], include_sensitive: bool) -> Result<String> {
     if include_sensitive {
         Ok(serde_json::to_string_pretty(wallets)?)
     } else {
         let safe_wallets: Vec<_> = wallets.iter().map(|w| {
             let mut safe = w.clone();
             safe.private_key = "[REDACTED]".to_string();
-            safe.mnemonic = safe.mnemonic.as_ref().map(|_| "[REDACTED]".to_string());
+            // Note: In hierarchical structure, mnemonic is not stored per address
             safe.passphrase = safe.passphrase.as_ref().map(|_| "[REDACTED]".to_string());
             safe
         }).collect();
@@ -65,7 +66,7 @@ fn export_json(wallets: &[crate::database::WalletRecord], include_sensitive: boo
     }
 }
 
-fn export_csv(wallets: &[crate::database::WalletRecord], include_sensitive: bool) -> Result<String> {
+fn export_csv(wallets: &[crate::database::WalletAddress], include_sensitive: bool) -> Result<String> {
     let mut csv = String::new();
     
     if include_sensitive {
