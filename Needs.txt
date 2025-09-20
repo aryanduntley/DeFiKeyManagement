@@ -1,0 +1,165 @@
+**CHECK**
+We do not want/need backwards compatibility or legacy code. DB schema can be overwritten. backup copy is in place Old/database/mod.rs. 
+
+Add-address cannot be used for existing addresses. "index0" address is the default name for all 0 index addresses for any given blockchain. We should actually change this to "btc-0", "eth-0", etc. It's created automatically with the blockchain list from import-multi and/or add-blockchain (currently derive-multi). 
+
+wallet-backup derive-multi --wallet-group "MetaMask_Main" --blockchains "cardano,polkadot" --mnemonic "your original mnemonic phrase"
+We will be changing the cli command "derive-multi" simply to add-blockchain. 
+We will remove the --mnemonic requirement. We already have it in record and adding a blockchain is no security issue. 
+We must include --account.
+
+rename-group --old-name "MetaMask_Main" --new-name "MetaMask_Primary"
+must supply --account (Master account name)
+
+Will add remove commands. These will require original mnemonic, then a disclaimer that the information will be completely removed including all sub-data (if account removal, all groups/blockchains/addresses will be removed, if blockchain all addressess will be removed, etc.) and non-recoverable, are you sure? Must type "I'm sure" for approval.
+
+WalletAddress should be changed to simpley Wallets in the database. WalletAddress is confusing. This table is for wallets.
+
+REMOVE: wallet-backup add-blockchain --account "" --wallet-group "" --blockchains ""
+    REPLACE WITH: wallet-backup add-wallet --account "" --wallet-group "" --blockchain "" --name "" (no more adding multiple. We will later create a csv and/or json importer)
+    ADD: wallet-backup add-standalone-wallet --private-key "" --blockchain "" --name ""
+    ADD: wallet-backup add-account --mnemonic|master-private "" --passphrase? "" --name ""(? = optional)
+    
+wallet-backup add-wallet-group --account "" --name ""
+wallet-backup add-address-group --account "" --wallet-group "" --wallet "" --name ""(required! Unique for account)
+REMOVE: wallet-backup add-address --account "" --wallet-group "" --address-group "" --blockchain "" --name ""
+    REPLACE WITH: wallet-backup add-subwallet --account "" --wallet-group "" --wallet "" --address-group "" --name ""
+
+wallet-backup rename-wallet-group --account "" --old-name "" --new-name ""
+wallet-backup rename-address-group --account "" --wallet-group "" --old-name "" --new-name ""
+REMOVE: wallet-backup rename-address --account "" --wallet-group "" --address-group "" --old-name|address "" --new-name ""
+    REPLACE WITH: wallet-backup rename-wallet --account "" --wallet-group "" --old-name|address "" --new-name ""
+    ADD: wallet-backup rename-subwallet --account "" --wallet-group "" --wallet "" --address-group "" --old-name|address "" --new-name ""
+
+wallet-backup list-cryptocurrencies
+wallet-backup list-wallet-groups --account ""
+wallet-backup list-address-groups --account "" --wallet-group "" --wallet ""
+REMOVE: wallet-backup list-addresses --account "" --wallet-group "" --address-group ""
+    REPLACE WITH: wallet-backup list-subwallets --account "" --wallet-group "" --wallet "" --address-group ""
+    ADD: wallet-backup list-wallets --account "" --wallet-group ""
+    ADD: wallet-backup list-standalone-wallets
+
+wallet-backup remove-account --account "" --mnemonic|master-private ""
+wallet-backup remove-wallet-group --account ""  --wallet-group "" --mnemonic|master-private
+wallet-backup remove-address-group --account "" --wallet-group "" --address-group "" --mnemonic|master-private ""
+REMOVE: wallet-backup remove-address --account "" --wallet-group "" --address-group "" --address-name|address "" --mnemonic ""
+    REPLACE WITH: wallet-backup remove-wallet --account "" --wallet-group "" --address-name|address "" --mnemonic|master-private ""
+    ADD: wallet-backup remove-subwallet --account "" --wallet-group "" --address-group "" --address-name|address "" --mnemonic|master-private ""
+     ADD: wallet-backup remove-standalone-wallet --address-name|address "" --private-key ""
+
+ADDITIONS:
+wallet-backup modify-wallet --account "" --wallet-group "" --wallet "" {options}
+wallet-backup modify-subwallet --account "" --wallet-group "" --wallet "" --subwallet "" {options}
+wallet-backup modify-standalone-wallet --name|address "" {options}
+    OPTIONS:
+        label
+        notes
+        additional_data
+        secondary_addresses
+wallet-backup rename-standalone-wallet --old-name|address "" --new-name ""
+wallet-backup show-wallet --account "" --wallet-group "" --wallet ""
+wallet-backup show-subwallet --account "" --wallet-group "" --wallet "" --subwallet ""
+wallet-backup show-standalone-wallet --name|address ""
+
+all removals:
+NOTICE: "... . Type -I'm sure- to continue." - should this be in single quotes " ... 'I'm sure' to continue."?
+
+remove:
+wallet-backup remove-blockchain --account "" --wallet-group "" --address-group "" --mnemonic
+We cannot remove a blockchain this way because there could potentially be several of the same blockchain. User must use remove-address-group to specify
+
+Show wallet group would require --account and wallet-group (by name).
+Show address group would require --account --wallet-group --wallet --address-group.
+  
+When you start with a mnemonic:
+
+  Mnemonic → seed → master private key (m)
+
+  This is the root of everything.
+
+  Child keys from the master
+
+  You can derive as many child private keys as you want, e.g.:
+
+  m/44'/0'/0'...
+  m/44'/0'/1'...
+  m/44'/0'/2'...
+
+
+  Each one can represent a “wallet” in your terminology (e.g., 
+  Dad-work, Dad-personal).
+
+  Grandchildren and beyond
+
+  Each child can have its own children (grandchildren of master).
+
+  E.g., under Dad-work (m/44'/0'/0'), you can derive:
+
+  m/44'/0'/0'/0/0   (first receiving address)
+  m/44'/0'/0'/0/1   (second receiving address)
+  m/44'/0'/0'/1/0   (first change/spending address)
+  \
+  \
+  Master private
+   ├─ Wallet (work)
+   │   ├─ Subwallet (receiving)
+   │   └─ Subwallet (spending)
+   └─ Wallet (personal)
+       ├─ Subwallet (savings)
+       └─ Subwallet (checking)\
+  \
+  Mnemonic → Master Private
+     ├─ Wallet Private 1 (work)
+     │   ├─ Subwallet Private 1.1 (receiving)
+     │   └─ Subwallet Private 1.2 (spending)
+     └─ Wallet Private 2 (personal)
+         ├─ Subwallet Private 2.1 (savings)
+         └─ Subwallet Private 2.2 (checking)\
+  \
+  Mnemonic → Master Private
+     ├─ m/0   = Wallet Private 1 (work)
+     │   ├─ m/0/0 = Subwallet 1.1 (receiving)
+     │   └─ m/0/1 = Subwallet 1.2 (spending)
+     └─ m/1   = Wallet Private 2 (personal)
+         ├─ m/1/0 = Subwallet 2.1 (savings)
+         └─ m/1/1 = Subwallet 2.2 (checking)\
+
+Account: FamilyAccount (mnemonic → master private m)
+  └── Wallet Group: Dad (internal organization only)
+      ├── Wallet: work (m/0 = child private) [bitcoin]
+      │   ├── Address Group: receiving (internal collection)
+      │   │   └── Subwallet: addr1.1 (m/0/0 = grandchild private)
+      │   └── Address Group: spending (internal collection)
+      │       └── Subwallet: addr1.2 (m/0/1 = grandchild private)
+      └── Wallet: personal (m/1 = child private) [bitcoin]
+          ├── Address Group: savings (internal collection)
+          │   └── Subwallet: addr2.1 (m/1/0 = grandchild private)
+          └── Address Group: checking (internal collection)
+              └── Subwallet: addr2.2 (m/1/1 = grandchild private)
+
+AddressGroup should have never "belonged" to WalletGroup. Address group is simply a grouping of wallets. WalletGroup is simply a grouping of wallets. WalletGroup groups child private keys and  the wallets that pertain to those keys, can be of any accepted blockchain. AddressGroup groups grandchild private keys and the wallets that pertain to those keys, can be only of the parent wallet blockchain.
+
+So WalletGroups are a collection of base wallets within an account. AddressGroups are a collection of subwallets within an address group, and subset only one specific wallet within a given WalletGroup.
+
+- WalletGroup: Groups child private keys (m/0, m/1, m/2...) - can be any blockchain
+- AddressGroup: Groups grandchild private keys (m/0/0, m/0/1, m/0/2...) - same blockchain as parent wallet
+- AddressGroup belongs to a specific base wallet, not to WalletGroup
+
+This makes the base_wallet_id field absolutely critical
+
+What would you like to modify?
+1. Label (current: RenamedStandalone)
+2. Notes (current: (none))
+3. Add additional data
+4. Remove additional data
+5. Add secondary address
+6. Remove secondary address
+7. Clear all additional data (0 entries)
+8. Clear all secondary addresses (0 addresses)
+9. Exit
+
+
+To re-enable cascading deletion in the future, you would simply:
+1. Remove the CLI validation checks I just added (the subwallet_count > 0 blocks)
+2. Keep the database methods unchanged - they already support cascading
+3. Add a --cascade flag to CLI commands for explicit cascading permission

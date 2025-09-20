@@ -58,7 +58,7 @@ pub fn execute(args: CreateWalletGroupArgs, db: &Database) -> Result<()> {
     }
 
     println!("\n💡 Next steps:");
-    println!("   1. Add wallet: wallet-backup add-wallet --account \"{}\" --wallet-group \"{}\" --blockchain \"bitcoin\"", args.account, args.name);
+    println!("   1. Add wallet: wallet-backup add-wallet --account \"{}\" --wallet-group \"{}\" --blockchain \"bitcoin\" --name \"<wallet-name>\"", args.account, args.name);
     println!("   2. List wallet groups: wallet-backup list-wallet-groups --account \"{}\"", args.account);
     println!("   3. Show group details: wallet-backup show-wallet-group --account \"{}\" --group \"{}\"", args.account, args.name);
 

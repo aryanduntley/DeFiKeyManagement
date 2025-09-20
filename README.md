@@ -42,16 +42,16 @@ cargo build --release
 #### Create Master Account
 ```bash
 # From new mnemonic (auto-generated)
-wallet-backup add-account --account "MyMainAccount"
+wallet-backup add-account --name "MyMainAccount"
 
 # From existing mnemonic
 wallet-backup add-account \
-  --account "ImportedAccount" \
+  --name "ImportedAccount" \
   --mnemonic "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 
 # With passphrase
 wallet-backup add-account \
-  --account "SecureAccount" \
+  --name "SecureAccount" \
   --mnemonic "your mnemonic phrase here" \
   --passphrase "additional-security-phrase"
 ```

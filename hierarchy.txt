@@ -1,0 +1,21 @@
+Account: FamilyAccount (mnemonic → master private m)
+  └── Wallet Group: Dad (internal organization only)
+      ├── Wallet: work (m/0 = child private) [bitcoin]
+      │   ├── Address Group: receiving (internal collection)
+      │   │   └── Subwallet: addr1.1 (m/0/0 = grandchild private)
+      │   └── Address Group: spending (internal collection)
+      │       └── Subwallet: addr1.2 (m/0/1 = grandchild private)
+      └── Wallet: personal (m/1 = child private) [bitcoin]
+          ├── Address Group: savings (internal collection)
+          │   └── Subwallet: addr2.1 (m/1/0 = grandchild private)
+          └── Address Group: checking (internal collection)
+              └── Subwallet: addr2.2 (m/1/1 = grandchild private)
+
+- WalletGroup: Groups child private keys (m/0, m/1, m/2...) - can be any blockchain
+- AddressGroup: Groups grandchild private keys (m/0/0, m/0/1, m/0/2...) - same blockchain as parent wallet
+- AddressGroup belongs to a specific base wallet, not to WalletGroup
+
+To re-enable cascading deletion in the future, you would simply:
+1. Remove the CLI validation checks I just added (the subwallet_count > 0 blocks)
+2. Keep the database methods unchanged - they already support cascading
+3. Add a --cascade flag to CLI commands for explicit cascading permission
