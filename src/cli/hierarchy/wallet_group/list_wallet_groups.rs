@@ -21,7 +21,7 @@ pub fn execute(args: ListWalletGroupsArgs, db: &Database) -> Result<()> {
             let accounts = db.list_master_accounts().context("Failed to list master accounts")?;
             if accounts.is_empty() {
                 println!("   (none)");
-                println!("\n💡 Create an account first: wallet-backup create-account --account-name \"{}\" --mnemonic \"...\"", args.account);
+                println!("\n💡 Create an account first: wallet-backup add-account --name \"{}\" --mnemonic \"...\"", args.account);
             } else {
                 for account in accounts {
                     println!("   - {}", account.name);
@@ -39,7 +39,7 @@ pub fn execute(args: ListWalletGroupsArgs, db: &Database) -> Result<()> {
     if wallet_groups.is_empty() {
         println!("   No wallet groups found for account '{}'.", args.account);
         println!("\n💡 Create a wallet group first:");
-        println!("   wallet-backup create-wallet-group --account \"{}\" --name \"PersonalWallet\"", args.account);
+        println!("   wallet-backup add-wallet-group --account \"{}\" --name \"PersonalWallet\"", args.account);
         return Ok(());
     }
 
@@ -47,7 +47,7 @@ pub fn execute(args: ListWalletGroupsArgs, db: &Database) -> Result<()> {
 
     // Table header
     println!("   {:3} {:<20} {:<12} {:<10} {:<15} {:<12}",
-             "ID", "Group Name", "Account Idx", "Addresses", "Address Groups", "Created");
+             "ID", "Group Name", "Account Idx", "Wallets", "Address Groups", "Created");
     println!("   {}", "─".repeat(80));
 
     // Table rows
@@ -56,7 +56,7 @@ pub fn execute(args: ListWalletGroupsArgs, db: &Database) -> Result<()> {
                  group.id,
                  truncate_string(&group.name, 18),
                  group.account_index,
-                 group.total_addresses,
+                 group.total_wallets,
                  group.address_group_count,
                  group.created_at.format("%Y-%m-%d").to_string()
         );

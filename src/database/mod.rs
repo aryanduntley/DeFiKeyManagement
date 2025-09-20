@@ -34,6 +34,7 @@ pub struct WalletGroup {
 pub struct AddressGroup {
     pub id: Option<i64>,
     pub wallet_group_id: i64,
+    pub base_wallet_id: i64, // References the parent wallet (child private key)
     pub blockchain: String,
     pub name: String,
     pub address_group_index: u32, // Auto-assigned sequential index per blockchain
@@ -43,25 +44,25 @@ pub struct AddressGroup {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WalletAddress {
+pub struct Wallet {
     pub id: Option<i64>,
-    pub wallet_group_id: Option<i64>, // NULL for private_key-only wallets (orphaned entries)
-    pub address_group_id: Option<i64>, // NULL for private_key-only wallets (orphaned entries)
+    pub wallet_group_id: Option<i64>, // NULL for standalone wallets (private_key-only)
+    pub address_group_id: Option<i64>, // NULL for direct wallets under wallet_group
     pub blockchain: String,
     pub address: String,
     pub address_with_checksum: Option<String>,
     pub private_key: String,
     pub public_key: Option<String>,
-    pub derivation_path: Option<String>, // NULL for private_key-only wallets (no derivation)
-    pub address_index: Option<u32>, // NULL for private_key-only wallets (no derivation sequence)
-    pub label: Option<String>, // Individual address label (empty by default)
-    pub source_type: String, // "mnemonic" or "private_key"
+    pub derivation_path: Option<String>, // Contains full path like "m/0" or "m/0/5", NULL for standalone wallets
+    pub label: Option<String>, // Individual wallet label (empty by default)
+    pub source_type: String, // "mnemonic", "master_private_key", or "private_key"
     pub explorer_url: Option<String>,
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
     pub additional_data: HashMap<String, String>, // Blockchain-specific metadata
     pub secondary_addresses: HashMap<String, String>, // Alternative address formats
 }
+
 
 // ========== SUMMARY STRUCTURES ==========
 
@@ -70,7 +71,7 @@ pub struct MasterAccountSummary {
     pub id: i64,
     pub name: String,
     pub wallet_group_count: i64,
-    pub total_addresses: i64,
+    pub total_wallets: i64,
     pub created_at: DateTime<Utc>,
 }
 
@@ -81,7 +82,7 @@ pub struct WalletGroupSummary {
     pub description: Option<String>,
     pub account_index: u32,
     pub address_group_count: i64,
-    pub total_addresses: i64,
+    pub total_wallets: i64,
     pub created_at: DateTime<Utc>,
 }
 
@@ -91,7 +92,7 @@ pub struct AddressGroupSummary {
     pub name: String,
     pub blockchain: String,
     pub address_group_index: u32,
-    pub address_count: i64,
+    pub wallet_count: i64,
     pub created_at: DateTime<Utc>,
 }
 
@@ -162,6 +163,7 @@ impl Database {
             CREATE TABLE IF NOT EXISTS address_groups (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 wallet_group_id INTEGER NOT NULL,
+                base_wallet_id INTEGER NOT NULL,
                 blockchain TEXT NOT NULL,
                 name TEXT NOT NULL,
                 address_group_index INTEGER NOT NULL,
@@ -169,41 +171,40 @@ impl Database {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (wallet_group_id) REFERENCES wallet_groups(id) ON DELETE CASCADE,
-                UNIQUE(wallet_group_id, name),
-                UNIQUE(wallet_group_id, blockchain, address_group_index)
+                FOREIGN KEY (base_wallet_id) REFERENCES wallets(id) ON DELETE CASCADE,
+                UNIQUE(base_wallet_id, name),
+                UNIQUE(base_wallet_id, address_group_index)
             );
             "#,
             [],
         ).context("Failed to create address_groups table")?;
 
-        // Level 4: Wallet Addresses - Individual addresses with dual references
+        // Level 4: Wallets - Individual wallets with dual references for hierarchy
         self.conn.execute(
             r#"
-            CREATE TABLE IF NOT EXISTS wallet_addresses (
+            CREATE TABLE IF NOT EXISTS wallets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                wallet_group_id INTEGER, -- NULL for private_key-only wallets (orphaned entries)
-                address_group_id INTEGER, -- NULL for private_key-only wallets (orphaned entries)
+                wallet_group_id INTEGER, -- NULL for standalone wallets (private_key-only)
+                address_group_id INTEGER, -- NULL for direct wallets under wallet_group
                 blockchain TEXT NOT NULL,
                 address TEXT UNIQUE NOT NULL,
                 address_with_checksum TEXT,
                 private_key TEXT NOT NULL,
                 public_key TEXT,
-                derivation_path TEXT, -- NULL for private_key-only wallets (no derivation)
-                address_index INTEGER, -- NULL for private_key-only wallets (no derivation sequence)
-                label TEXT, -- Individual address label (empty by default)
+                derivation_path TEXT, -- Contains full path like "m/0" or "m/0/5", NULL for standalone wallets
+                label TEXT, -- Individual wallet label (empty by default)
                 source_type TEXT NOT NULL DEFAULT 'mnemonic',
                 explorer_url TEXT,
                 notes TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (wallet_group_id) REFERENCES wallet_groups(id) ON DELETE CASCADE,
-                FOREIGN KEY (address_group_id) REFERENCES address_groups(id) ON DELETE CASCADE,
-                CHECK (address_group_id IS NULL OR address_index IS NOT NULL)
+                FOREIGN KEY (address_group_id) REFERENCES address_groups(id) ON DELETE CASCADE
             );
             "#,
             [],
-        ).context("Failed to create wallet_addresses table")?;
+        ).context("Failed to create wallets table")?;
 
-        // Preserved: Table for blockchain-specific additional data (links to wallet_addresses.id)
+        // Preserved: Table for blockchain-specific additional data (links to wallets.id)
         self.conn.execute(
             r#"
             CREATE TABLE IF NOT EXISTS wallet_additional_data (
@@ -212,14 +213,14 @@ impl Database {
                 data_key TEXT NOT NULL,
                 data_value TEXT NOT NULL,
                 data_type TEXT DEFAULT 'string',
-                FOREIGN KEY (wallet_id) REFERENCES wallet_addresses(id) ON DELETE CASCADE,
+                FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON DELETE CASCADE,
                 UNIQUE(wallet_id, data_key)
             );
             "#,
             [],
         ).context("Failed to create wallet_additional_data table")?;
 
-        // Preserved: Table for secondary addresses (EVM, legacy, etc.) (links to wallet_addresses.id)
+        // Preserved: Table for secondary addresses (EVM, legacy, etc.) (links to wallets.id)
         self.conn.execute(
             r#"
             CREATE TABLE IF NOT EXISTS wallet_secondary_addresses (
@@ -228,7 +229,7 @@ impl Database {
                 address_type TEXT NOT NULL,
                 address TEXT NOT NULL,
                 address_with_checksum TEXT,
-                FOREIGN KEY (wallet_id) REFERENCES wallet_addresses(id) ON DELETE CASCADE,
+                FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON DELETE CASCADE,
                 UNIQUE(wallet_id, address_type)
             );
             "#,
@@ -275,31 +276,31 @@ impl Database {
             [],
         ).context("Failed to create address groups name index")?;
 
-        // Wallet Addresses indexes
+        // Wallets indexes
         self.conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_wallet_addresses_wallet_group_id ON wallet_addresses(wallet_group_id);",
+            "CREATE INDEX IF NOT EXISTS idx_wallets_wallet_group_id ON wallets(wallet_group_id);",
             [],
-        ).context("Failed to create wallet addresses wallet group id index")?;
+        ).context("Failed to create wallets wallet group id index")?;
 
         self.conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_wallet_addresses_address_group_id ON wallet_addresses(address_group_id);",
+            "CREATE INDEX IF NOT EXISTS idx_wallets_address_group_id ON wallets(address_group_id);",
             [],
-        ).context("Failed to create wallet addresses address group id index")?;
+        ).context("Failed to create wallets address group id index")?;
 
         self.conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_wallet_addresses_blockchain ON wallet_addresses(blockchain);",
+            "CREATE INDEX IF NOT EXISTS idx_wallets_blockchain ON wallets(blockchain);",
             [],
-        ).context("Failed to create wallet addresses blockchain index")?;
+        ).context("Failed to create wallets blockchain index")?;
 
         self.conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_wallet_addresses_address ON wallet_addresses(address);",
+            "CREATE INDEX IF NOT EXISTS idx_wallets_address ON wallets(address);",
             [],
-        ).context("Failed to create wallet addresses address index")?;
+        ).context("Failed to create wallets address index")?;
 
         self.conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_wallet_addresses_source_type ON wallet_addresses(source_type);",
+            "CREATE INDEX IF NOT EXISTS idx_wallets_source_type ON wallets(source_type);",
             [],
-        ).context("Failed to create wallet addresses source type index")?;
+        ).context("Failed to create wallets source type index")?;
 
         // Preserved metadata indexes
         self.conn.execute(
@@ -372,11 +373,11 @@ impl Database {
             SELECT
                 m.id, m.name, m.created_at,
                 COUNT(DISTINCT g.id) as wallet_group_count,
-                COUNT(DISTINCT a.id) as total_addresses
+                COUNT(DISTINCT w.id) as total_wallets
             FROM master_accounts m
             LEFT JOIN wallet_groups g ON m.id = g.master_account_id
             LEFT JOIN address_groups ag ON g.id = ag.wallet_group_id
-            LEFT JOIN wallet_addresses a ON ag.id = a.address_group_id
+            LEFT JOIN wallets w ON (g.id = w.wallet_group_id OR ag.id = w.address_group_id)
             GROUP BY m.id, m.name, m.created_at
             ORDER BY m.created_at DESC
             "#
@@ -388,7 +389,7 @@ impl Database {
                 name: row.get(1)?,
                 created_at: self.parse_datetime(&row.get::<_, String>(2)?)?,
                 wallet_group_count: row.get(3)?,
-                total_addresses: row.get(4)?,
+                total_wallets: row.get(4)?,
             })
         }).context("Failed to query master accounts")?;
 
@@ -486,10 +487,10 @@ impl Database {
             SELECT
                 g.id, g.name, g.description, g.account_index, g.created_at,
                 COUNT(DISTINCT ag.id) as address_group_count,
-                COUNT(DISTINCT a.id) as total_addresses
+                COUNT(DISTINCT w.id) as total_wallets
             FROM wallet_groups g
             LEFT JOIN address_groups ag ON g.id = ag.wallet_group_id
-            LEFT JOIN wallet_addresses a ON ag.id = a.address_group_id
+            LEFT JOIN wallets w ON (g.id = w.wallet_group_id OR ag.id = w.address_group_id)
             WHERE g.master_account_id = ?1
             GROUP BY g.id, g.name, g.description, g.account_index, g.created_at
             ORDER BY g.account_index
@@ -503,7 +504,7 @@ impl Database {
                 description: row.get(2)?,
                 account_index: row.get(3)?,
                 address_group_count: row.get(5)?,
-                total_addresses: row.get(6)?,
+                total_wallets: row.get(6)?,
                 created_at: self.parse_datetime(&row.get::<_, String>(4)?)?,
             })
         }).context("Failed to query wallet groups")?;
@@ -571,35 +572,42 @@ impl Database {
 
     /// Creates or gets default address group for a blockchain (e.g., "bitcoin-0", "ethereum-0")
     pub fn get_or_create_default_address_group(&self, wallet_group_id: i64, blockchain: &str) -> Result<i64> {
+        // This method is deprecated with the new schema - address groups belong to specific wallets
+        // For backward compatibility during migration, return an error with guidance
+        Err(anyhow::anyhow!("get_or_create_default_address_group is deprecated. Use get_or_create_default_address_group_for_wallet instead."))
+    }
+
+    /// Creates or gets default address group for a specific wallet (NEW METHOD)
+    pub fn get_or_create_default_address_group_for_wallet(&self, wallet_group_id: i64, base_wallet_id: i64, blockchain: &str) -> Result<i64> {
         let default_name = format!("{}-0", blockchain);
 
-        // Check if default address group exists
-        if let Some(group) = self.get_address_group_by_name(wallet_group_id, &default_name)? {
+        // Check if default address group exists for this wallet
+        if let Some(group) = self.get_address_group_by_name_for_wallet(base_wallet_id, &default_name)? {
             return Ok(group.id.unwrap());
         }
 
-        // Create new default address group
-        self.create_address_group(wallet_group_id, blockchain, &default_name)
+        // Create new default address group for this specific wallet
+        self.create_address_group(wallet_group_id, base_wallet_id, blockchain, &default_name)
     }
 
     /// Creates a new address group with auto-assigned index
-    pub fn create_address_group(&self, wallet_group_id: i64, blockchain: &str, name: &str) -> Result<i64> {
+    pub fn create_address_group(&self, wallet_group_id: i64, base_wallet_id: i64, blockchain: &str, name: &str) -> Result<i64> {
         let tx = self.conn.unchecked_transaction()?;
 
-        // Get next address group index for this blockchain within the wallet group
+        // Get next address group index for this base wallet
         let next_index: u32 = tx.query_row(
-            "SELECT COALESCE(MAX(address_group_index), -1) + 1 FROM address_groups WHERE wallet_group_id = ?1 AND blockchain = ?2",
-            params![wallet_group_id, blockchain],
+            "SELECT COALESCE(MAX(address_group_index), -1) + 1 FROM address_groups WHERE base_wallet_id = ?1",
+            params![base_wallet_id],
             |row| Ok(row.get(0)?)
         ).context("Failed to get next address group index")?;
 
         // Insert address group
         let group_id = {
             let mut stmt = tx.prepare(
-                "INSERT INTO address_groups (wallet_group_id, blockchain, name, address_group_index) VALUES (?1, ?2, ?3, ?4)"
+                "INSERT INTO address_groups (wallet_group_id, base_wallet_id, blockchain, name, address_group_index) VALUES (?1, ?2, ?3, ?4, ?5)"
             ).context("Failed to prepare address group insert")?;
 
-            stmt.execute(params![wallet_group_id, blockchain, name, next_index])
+            stmt.execute(params![wallet_group_id, base_wallet_id, blockchain, name, next_index])
                 .context("Failed to insert address group")?;
 
             tx.last_insert_rowid()
@@ -612,19 +620,47 @@ impl Database {
     /// Gets address group by name within a wallet group
     pub fn get_address_group_by_name(&self, wallet_group_id: i64, name: &str) -> Result<Option<AddressGroup>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, wallet_group_id, blockchain, name, address_group_index, next_address_index, created_at, updated_at FROM address_groups WHERE wallet_group_id = ?1 AND name = ?2"
+            "SELECT id, wallet_group_id, base_wallet_id, blockchain, name, address_group_index, next_address_index, created_at, updated_at FROM address_groups WHERE wallet_group_id = ?1 AND name = ?2"
         ).context("Failed to prepare address group query")?;
 
         let group_result = stmt.query_row([&wallet_group_id.to_string(), name], |row| {
             Ok(AddressGroup {
                 id: Some(row.get(0)?),
                 wallet_group_id: row.get(1)?,
-                blockchain: row.get(2)?,
-                name: row.get(3)?,
-                address_group_index: row.get(4)?,
-                next_address_index: row.get(5)?,
-                created_at: self.parse_datetime(&row.get::<_, String>(6)?)?,
-                updated_at: self.parse_datetime(&row.get::<_, String>(7)?)?,
+                base_wallet_id: row.get(2)?,
+                blockchain: row.get(3)?,
+                name: row.get(4)?,
+                address_group_index: row.get(5)?,
+                next_address_index: row.get(6)?,
+                created_at: self.parse_datetime(&row.get::<_, String>(7)?)?,
+                updated_at: self.parse_datetime(&row.get::<_, String>(8)?)?,
+            })
+        });
+
+        match group_result {
+            Ok(group) => Ok(Some(group)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(anyhow::Error::from(e).context("Failed to query address group")),
+        }
+    }
+
+    /// Gets address group by name for a specific wallet (base wallet)
+    pub fn get_address_group_by_name_for_wallet(&self, base_wallet_id: i64, name: &str) -> Result<Option<AddressGroup>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, wallet_group_id, base_wallet_id, blockchain, name, address_group_index, next_address_index, created_at, updated_at FROM address_groups WHERE base_wallet_id = ?1 AND name = ?2"
+        ).context("Failed to prepare address group query")?;
+
+        let group_result = stmt.query_row([&base_wallet_id.to_string(), name], |row| {
+            Ok(AddressGroup {
+                id: Some(row.get(0)?),
+                wallet_group_id: row.get(1)?,
+                base_wallet_id: row.get(2)?,
+                blockchain: row.get(3)?,
+                name: row.get(4)?,
+                address_group_index: row.get(5)?,
+                next_address_index: row.get(6)?,
+                created_at: self.parse_datetime(&row.get::<_, String>(7)?)?,
+                updated_at: self.parse_datetime(&row.get::<_, String>(8)?)?,
             })
         });
 
@@ -642,9 +678,9 @@ impl Database {
                 r#"
                 SELECT
                     ag.id, ag.name, ag.blockchain, ag.address_group_index, ag.created_at,
-                    COUNT(a.id) as address_count
+                    COUNT(w.id) as wallet_count
                 FROM address_groups ag
-                LEFT JOIN wallet_addresses a ON ag.id = a.address_group_id
+                LEFT JOIN wallets w ON ag.id = w.address_group_id
                 WHERE ag.wallet_group_id = ?1 AND ag.blockchain = ?2
                 GROUP BY ag.id, ag.name, ag.blockchain, ag.address_group_index, ag.created_at
                 ORDER BY ag.blockchain, ag.address_group_index
@@ -655,9 +691,9 @@ impl Database {
                 r#"
                 SELECT
                     ag.id, ag.name, ag.blockchain, ag.address_group_index, ag.created_at,
-                    COUNT(a.id) as address_count
+                    COUNT(w.id) as wallet_count
                 FROM address_groups ag
-                LEFT JOIN wallet_addresses a ON ag.id = a.address_group_id
+                LEFT JOIN wallets w ON ag.id = w.address_group_id
                 WHERE ag.wallet_group_id = ?1
                 GROUP BY ag.id, ag.name, ag.blockchain, ag.address_group_index, ag.created_at
                 ORDER BY ag.blockchain, ag.address_group_index
@@ -675,7 +711,40 @@ impl Database {
                 name: row.get(1)?,
                 blockchain: row.get(2)?,
                 address_group_index: row.get(3)?,
-                address_count: row.get(5)?,
+                wallet_count: row.get(5)?,
+                created_at: self.parse_datetime(&row.get::<_, String>(4)?)?,
+            })
+        }).context("Failed to query address groups")?;
+
+        let mut groups = Vec::new();
+        for group_result in group_iter {
+            groups.push(group_result.context("Failed to parse address group summary")?);
+        }
+
+        Ok(groups)
+    }
+
+    /// Lists address groups for a specific wallet (base wallet)
+    pub fn list_address_groups_for_wallet(&self, base_wallet_id: i64) -> Result<Vec<AddressGroupSummary>> {
+        let query = r#"
+            SELECT
+                ag.id, ag.name, ag.blockchain, ag.address_group_index, ag.created_at,
+                COUNT(w.id) as wallet_count
+            FROM address_groups ag
+            LEFT JOIN wallets w ON ag.id = w.address_group_id
+            WHERE ag.base_wallet_id = ?1
+            GROUP BY ag.id, ag.name, ag.blockchain, ag.address_group_index, ag.created_at
+            ORDER BY ag.address_group_index
+        "#;
+
+        let mut stmt = self.conn.prepare(query).context("Failed to prepare address groups query")?;
+        let group_iter = stmt.query_map([base_wallet_id], |row| {
+            Ok(AddressGroupSummary {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                blockchain: row.get(2)?,
+                address_group_index: row.get(3)?,
+                wallet_count: row.get(5)?,
                 created_at: self.parse_datetime(&row.get::<_, String>(4)?)?,
             })
         }).context("Failed to query address groups")?;
@@ -690,159 +759,165 @@ impl Database {
 
     // ========== WALLET ADDRESS OPERATIONS ==========
 
-    /// Creates a wallet address within an address group (for mnemonic-derived addresses)
-    pub fn create_wallet_address(&self, wallet_address: &WalletAddress) -> Result<i64> {
+    /// Creates a wallet within hierarchy (for mnemonic-derived wallets)
+    pub fn create_wallet(&self, wallet: &Wallet) -> Result<i64> {
         let tx = self.conn.unchecked_transaction()?;
 
-        // Get next address index if this is a mnemonic-derived address
-        let address_index = if let Some(address_group_id) = wallet_address.address_group_id {
-            // Get and increment next_address_index
-            let next_index: u32 = tx.query_row(
-                "SELECT next_address_index FROM address_groups WHERE id = ?1",
-                [address_group_id],
-                |row| Ok(row.get(0)?)
-            ).context("Failed to get next address index")?;
-
-            // Update next_address_index
-            tx.execute(
-                "UPDATE address_groups SET next_address_index = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
-                params![next_index + 1, address_group_id],
-            ).context("Failed to update next address index")?;
-
-            Some(next_index)
-        } else {
-            // Orphaned address (private_key-only)
-            None
-        };
-
-        // Insert wallet address
+        // Insert wallet - no address_index management needed (handled by derivation_path)
         let wallet_id = {
             let mut stmt = tx.prepare(
                 r#"
-                INSERT INTO wallet_addresses (
+                INSERT INTO wallets (
                     wallet_group_id, address_group_id, blockchain, address, address_with_checksum,
-                    private_key, public_key, derivation_path, address_index, label,
+                    private_key, public_key, derivation_path, label,
                     source_type, explorer_url, notes
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
                 "#
-            ).context("Failed to prepare wallet address insert")?;
+            ).context("Failed to prepare wallet insert")?;
 
             stmt.execute(params![
-                wallet_address.wallet_group_id,
-                wallet_address.address_group_id,
-                wallet_address.blockchain,
-                wallet_address.address,
-                wallet_address.address_with_checksum,
-                wallet_address.private_key,
-                wallet_address.public_key,
-                wallet_address.derivation_path,
-                address_index,
-                wallet_address.label,
-                wallet_address.source_type,
-                wallet_address.explorer_url,
-                wallet_address.notes,
-            ]).context("Failed to insert wallet address")?;
+                wallet.wallet_group_id,
+                wallet.address_group_id,
+                wallet.blockchain,
+                wallet.address,
+                wallet.address_with_checksum,
+                wallet.private_key,
+                wallet.public_key,
+                wallet.derivation_path,
+                wallet.label,
+                wallet.source_type,
+                wallet.explorer_url,
+                wallet.notes,
+            ]).context("Failed to insert wallet")?;
 
             tx.last_insert_rowid()
         };
 
         // Insert additional data
-        if !wallet_address.additional_data.is_empty() {
+        if !wallet.additional_data.is_empty() {
             let mut data_stmt = tx.prepare(
                 "INSERT INTO wallet_additional_data (wallet_id, data_key, data_value) VALUES (?1, ?2, ?3)"
             ).context("Failed to prepare additional data insert")?;
 
-            for (key, value) in &wallet_address.additional_data {
+            for (key, value) in &wallet.additional_data {
                 data_stmt.execute(params![wallet_id, key, value])
                     .context("Failed to insert additional data")?;
             }
         }
 
         // Insert secondary addresses
-        if !wallet_address.secondary_addresses.is_empty() {
+        if !wallet.secondary_addresses.is_empty() {
             let mut addr_stmt = tx.prepare(
                 "INSERT INTO wallet_secondary_addresses (wallet_id, address_type, address) VALUES (?1, ?2, ?3)"
             ).context("Failed to prepare secondary address insert")?;
 
-            for (addr_type, address) in &wallet_address.secondary_addresses {
+            for (addr_type, address) in &wallet.secondary_addresses {
                 addr_stmt.execute(params![wallet_id, addr_type, address])
                     .context("Failed to insert secondary address")?;
             }
         }
 
-        tx.commit().context("Failed to commit wallet address creation")?;
+        tx.commit().context("Failed to commit wallet creation")?;
         Ok(wallet_id)
     }
-    /// Creates an orphaned wallet address (for private_key-only addresses)
-    pub fn create_orphaned_wallet_address(&self, wallet_address: &WalletAddress) -> Result<i64> {
-        // Ensure this is marked as orphaned
-        let mut orphaned_address = wallet_address.clone();
-        orphaned_address.wallet_group_id = None;
-        orphaned_address.address_group_id = None;
-        orphaned_address.derivation_path = None;
-        orphaned_address.address_index = None;
-        orphaned_address.source_type = "private_key".to_string();
 
-        self.create_wallet_address(&orphaned_address)
+    /// Creates a standalone wallet (for private_key-only wallets)
+    pub fn create_standalone_wallet(&self, wallet: &Wallet) -> Result<i64> {
+        // Ensure this is marked as standalone
+        let mut standalone_wallet = wallet.clone();
+        standalone_wallet.wallet_group_id = None;
+        standalone_wallet.address_group_id = None;
+        standalone_wallet.derivation_path = None;
+        standalone_wallet.source_type = "private_key".to_string();
+
+        self.create_wallet(&standalone_wallet)
     }
 
-    /// Gets wallet addresses for a specific address group
-    pub fn get_wallet_addresses_by_address_group(&self, address_group_id: i64) -> Result<Vec<WalletAddress>> {
+    /// Gets wallets for a specific address group (subwallets)
+    pub fn get_wallets_by_address_group(&self, address_group_id: i64) -> Result<Vec<Wallet>> {
         let mut stmt = self.conn.prepare(
             r#"
             SELECT id, wallet_group_id, address_group_id, blockchain, address, address_with_checksum,
-                   private_key, public_key, derivation_path, address_index, label,
+                   private_key, public_key, derivation_path, label,
                    source_type, explorer_url, notes, created_at
-            FROM wallet_addresses
+            FROM wallets
             WHERE address_group_id = ?1
-            ORDER BY address_index
+            ORDER BY derivation_path
             "#
-        ).context("Failed to prepare wallet addresses query")?;
+        ).context("Failed to prepare wallets query")?;
 
-        let address_iter = stmt.query_map([address_group_id], |row| {
-            self.build_wallet_address_from_row(row)
-        }).context("Failed to query wallet addresses")?;
+        let wallet_iter = stmt.query_map([address_group_id], |row| {
+            self.build_wallet_from_row(row)
+        }).context("Failed to query wallets")?;
 
-        let mut addresses = Vec::new();
-        for address_result in address_iter {
-            let address = address_result.context("Failed to parse wallet address")?;
-            let completed_address = self.complete_wallet_address(address)?;
-            addresses.push(completed_address);
+        let mut wallets = Vec::new();
+        for wallet_result in wallet_iter {
+            let wallet = wallet_result.context("Failed to parse wallet")?;
+            let completed_wallet = self.complete_wallet(wallet)?;
+            wallets.push(completed_wallet);
         }
 
-        Ok(addresses)
+        Ok(wallets)
     }
 
-    /// Gets all orphaned wallet addresses (private_key-only)
-    pub fn get_orphaned_wallet_addresses(&self) -> Result<Vec<WalletAddress>> {
+    /// Gets all base wallets for a wallet group (address_group_id IS NULL)
+    /// These are the child private keys that belong directly to the wallet group
+    pub fn get_wallets_by_wallet_group(&self, wallet_group_id: i64) -> Result<Vec<Wallet>> {
         let mut stmt = self.conn.prepare(
             r#"
             SELECT id, wallet_group_id, address_group_id, blockchain, address, address_with_checksum,
-                   private_key, public_key, derivation_path, address_index, label,
+                   private_key, public_key, derivation_path, label,
                    source_type, explorer_url, notes, created_at
-            FROM wallet_addresses
+            FROM wallets
+            WHERE wallet_group_id = ?1 AND address_group_id IS NULL
+            ORDER BY created_at DESC
+            "#
+        ).context("Failed to prepare wallet group wallets query")?;
+
+        let wallet_iter = stmt.query_map([wallet_group_id], |row| {
+            self.build_wallet_from_row(row)
+        }).context("Failed to query wallet group wallets")?;
+
+        let mut wallets = Vec::new();
+        for wallet_result in wallet_iter {
+            let wallet = wallet_result.context("Failed to parse wallet")?;
+            let completed_wallet = self.complete_wallet(wallet)?;
+            wallets.push(completed_wallet);
+        }
+
+        Ok(wallets)
+    }
+
+    /// Gets all standalone wallets (private_key-only)
+    pub fn get_standalone_wallets(&self) -> Result<Vec<Wallet>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT id, wallet_group_id, address_group_id, blockchain, address, address_with_checksum,
+                   private_key, public_key, derivation_path, label,
+                   source_type, explorer_url, notes, created_at
+            FROM wallets
             WHERE wallet_group_id IS NULL AND address_group_id IS NULL
             ORDER BY created_at DESC
             "#
-        ).context("Failed to prepare orphaned addresses query")?;
+        ).context("Failed to prepare standalone wallets query")?;
 
-        let address_iter = stmt.query_map([], |row| {
-            self.build_wallet_address_from_row(row)
-        }).context("Failed to query orphaned addresses")?;
+        let wallet_iter = stmt.query_map([], |row| {
+            self.build_wallet_from_row(row)
+        }).context("Failed to query standalone wallets")?;
 
-        let mut addresses = Vec::new();
-        for address_result in address_iter {
-            let address = address_result.context("Failed to parse wallet address")?;
-            let completed_address = self.complete_wallet_address(address)?;
-            addresses.push(completed_address);
+        let mut wallets = Vec::new();
+        for wallet_result in wallet_iter {
+            let wallet = wallet_result.context("Failed to parse wallet")?;
+            let completed_wallet = self.complete_wallet(wallet)?;
+            wallets.push(completed_wallet);
         }
 
-        Ok(addresses)
+        Ok(wallets)
     }
 
-    // Helper method to build WalletAddress from database row
-    fn build_wallet_address_from_row(&self, row: &rusqlite::Row) -> SqlResult<WalletAddress> {
-        Ok(WalletAddress {
+    // Helper method to build Wallet from database row (new schema without address_index)
+    fn build_wallet_from_row(&self, row: &rusqlite::Row) -> SqlResult<Wallet> {
+        Ok(Wallet {
             id: Some(row.get(0)?),
             wallet_group_id: row.get(1)?,
             address_group_id: row.get(2)?,
@@ -852,73 +927,99 @@ impl Database {
             private_key: row.get(6)?,
             public_key: row.get(7)?,
             derivation_path: row.get(8)?,
-            address_index: row.get(9)?,
-            label: row.get(10)?,
-            source_type: row.get(11)?,
-            explorer_url: row.get(12)?,
-            notes: row.get(13)?,
-            created_at: self.parse_datetime(&row.get::<_, String>(14)?).map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?,
+            label: row.get(9)?,
+            source_type: row.get(10)?,
+            explorer_url: row.get(11)?,
+            notes: row.get(12)?,
+            created_at: self.parse_datetime(&row.get::<_, String>(13)?).map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?,
             additional_data: HashMap::new(),
             secondary_addresses: HashMap::new(),
         })
     }
 
-    // Helper method to complete wallet address with additional data
-    fn complete_wallet_address(&self, mut address: WalletAddress) -> Result<WalletAddress> {
-        if let Some(address_id) = address.id {
-            address.additional_data = self.load_additional_data(address_id)?;
-            address.secondary_addresses = self.load_secondary_addresses(address_id)?;
+    // Helper method to complete wallet with additional data
+    fn complete_wallet(&self, mut wallet: Wallet) -> Result<Wallet> {
+        if let Some(wallet_id) = wallet.id {
+            wallet.additional_data = self.load_additional_data(wallet_id)?;
+            wallet.secondary_addresses = self.load_secondary_addresses(wallet_id)?;
         }
-        Ok(address)
+        Ok(wallet)
     }
-    /// Gets wallet address by address string
-    pub fn get_wallet_address_by_address(&self, address: &str) -> Result<Option<WalletAddress>> {
+
+    /// Gets wallet by address string
+    pub fn get_wallet_by_address(&self, address: &str) -> Result<Option<Wallet>> {
         let mut stmt = self.conn.prepare(
             r#"
             SELECT id, wallet_group_id, address_group_id, blockchain, address, address_with_checksum,
-                   private_key, public_key, derivation_path, address_index, label,
+                   private_key, public_key, derivation_path, label,
                    source_type, explorer_url, notes, created_at
-            FROM wallet_addresses WHERE address = ?1
+            FROM wallets WHERE address = ?1
             "#
         ).context("Failed to prepare wallet address query")?;
 
         let mut rows = stmt.query_map([address], |row| {
-            self.build_wallet_address_from_row(row)
-        }).context("Failed to query wallet address")?;
+            self.build_wallet_from_row(row)
+        }).context("Failed to query wallet")?;
 
         match rows.next() {
-            Some(address_result) => {
-                let address = address_result.context("Failed to parse wallet address")?;
-                let completed_address = self.complete_wallet_address(address)?;
-                Ok(Some(completed_address))
+            Some(wallet_result) => {
+                let wallet = wallet_result.context("Failed to parse wallet")?;
+                let completed_wallet = self.complete_wallet(wallet)?;
+                Ok(Some(completed_wallet))
             },
             None => Ok(None),
         }
     }
-    /// Gets wallet address by label
-    pub fn get_wallet_address_by_label(&self, label: &str) -> Result<Option<WalletAddress>> {
+    /// Gets wallet by label
+    pub fn get_wallet_by_label(&self, label: &str) -> Result<Option<Wallet>> {
         let mut stmt = self.conn.prepare(
             r#"
             SELECT id, wallet_group_id, address_group_id, blockchain, address, address_with_checksum,
-                   private_key, public_key, derivation_path, address_index, label,
+                   private_key, public_key, derivation_path, label,
                    source_type, explorer_url, notes, created_at
-            FROM wallet_addresses WHERE label = ?1
+            FROM wallets WHERE label = ?1
             "#
         ).context("Failed to prepare wallet address query")?;
 
         let mut rows = stmt.query_map([label], |row| {
-            self.build_wallet_address_from_row(row)
-        }).context("Failed to query wallet address by label")?;
+            self.build_wallet_from_row(row)
+        }).context("Failed to query wallet by label")?;
 
         match rows.next() {
-            Some(address_result) => {
-                let address = address_result.context("Failed to parse wallet address")?;
-                let completed_address = self.complete_wallet_address(address)?;
-                Ok(Some(completed_address))
+            Some(wallet_result) => {
+                let wallet = wallet_result.context("Failed to parse wallet")?;
+                let completed_wallet = self.complete_wallet(wallet)?;
+                Ok(Some(completed_wallet))
             },
             None => Ok(None),
         }
     }
+
+    /// Gets wallet by label within a specific wallet group (for add-address-group command)
+    pub fn get_wallet_by_name_in_group(&self, wallet_group_id: i64, wallet_label: &str) -> Result<Option<Wallet>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT id, wallet_group_id, address_group_id, blockchain, address, address_with_checksum,
+                   private_key, public_key, derivation_path, label,
+                   source_type, explorer_url, notes, created_at
+            FROM wallets WHERE wallet_group_id = ?1 AND label = ?2 AND address_group_id IS NULL
+            "#
+        ).context("Failed to prepare wallet query")?;
+
+        let mut rows = stmt.query_map([&wallet_group_id.to_string(), wallet_label], |row| {
+            self.build_wallet_from_row(row)
+        }).context("Failed to query wallet by label in group")?;
+
+        match rows.next() {
+            Some(wallet_result) => {
+                let wallet = wallet_result.context("Failed to parse wallet")?;
+                let completed_wallet = self.complete_wallet(wallet)?;
+                Ok(Some(completed_wallet))
+            },
+            None => Ok(None),
+        }
+    }
+
     // ========== BULK OPERATIONS ==========
 
     /// Creates complete hierarchy from mnemonic for import-multi command
@@ -969,12 +1070,65 @@ impl Database {
 
     // ========== UTILITY & MANAGEMENT OPERATIONS ==========
 
-    /// Updates wallet address label
-    pub fn update_wallet_address_label(&self, address: &str, new_label: &str) -> Result<bool> {
+    /// Updates wallet label
+    pub fn update_wallet_label(&self, address: &str, new_label: &str) -> Result<bool> {
         let rows_affected = self.conn.execute(
-            "UPDATE wallet_addresses SET label = ?1 WHERE address = ?2",
+            "UPDATE wallets SET label = ?1 WHERE address = ?2",
             params![new_label, address],
-        ).context("Failed to update wallet address label")?;
+        ).context("Failed to update wallet label")?;
+
+        Ok(rows_affected > 0)
+    }
+
+    pub fn update_wallet(&self, wallet: &Wallet) -> Result<bool> {
+        // Get the wallet ID first
+        let wallet_id = match self.get_wallet_by_address(&wallet.address)? {
+            Some(existing_wallet) => existing_wallet.id.unwrap(),
+            None => return Ok(false), // Wallet not found
+        };
+
+        // Update basic wallet fields
+        let rows_affected = self.conn.execute(
+            "UPDATE wallets SET
+                label = ?1,
+                notes = ?2
+            WHERE address = ?3",
+            params![
+                wallet.label,
+                wallet.notes,
+                wallet.address
+            ],
+        ).context("Failed to update wallet")?;
+
+        // Update additional data in separate table
+        // First clear existing data
+        self.conn.execute(
+            "DELETE FROM wallet_additional_data WHERE wallet_id = ?1",
+            params![wallet_id],
+        ).context("Failed to clear existing additional data")?;
+
+        // Insert new additional data
+        for (key, value) in &wallet.additional_data {
+            self.conn.execute(
+                "INSERT INTO wallet_additional_data (wallet_id, data_key, data_value) VALUES (?1, ?2, ?3)",
+                params![wallet_id, key, value],
+            ).context("Failed to insert additional data")?;
+        }
+
+        // Update secondary addresses in separate table
+        // First clear existing secondary addresses
+        self.conn.execute(
+            "DELETE FROM wallet_secondary_addresses WHERE wallet_id = ?1",
+            params![wallet_id],
+        ).context("Failed to clear existing secondary addresses")?;
+
+        // Insert new secondary addresses
+        for (addr_type, address) in &wallet.secondary_addresses {
+            self.conn.execute(
+                "INSERT INTO wallet_secondary_addresses (wallet_id, address_type, address) VALUES (?1, ?2, ?3)",
+                params![wallet_id, addr_type, address],
+            ).context("Failed to insert secondary address")?;
+        }
 
         Ok(rows_affected > 0)
     }
@@ -995,31 +1149,23 @@ impl Database {
     }
 
     /// Renames address group within a wallet group
-    pub fn rename_address_group(&self, wallet_group_id: i64, old_name: &str, new_name: &str) -> Result<bool> {
-        // Check if new name already exists within this wallet group
-        if self.get_address_group_by_name(wallet_group_id, new_name)?.is_some() {
-            bail!("Address group '{}' already exists in this wallet group.", new_name);
+    pub fn rename_address_group(&self, base_wallet_id: i64, old_name: &str, new_name: &str) -> Result<bool> {
+        // Check if new name already exists for this base wallet
+        if self.get_address_group_by_name_for_wallet(base_wallet_id, new_name)?.is_some() {
+            bail!("Address group '{}' already exists for this wallet.", new_name);
         }
 
         let rows_affected = self.conn.execute(
-            "UPDATE address_groups SET name = ?1, updated_at = CURRENT_TIMESTAMP WHERE wallet_group_id = ?2 AND name = ?3",
-            params![new_name, wallet_group_id, old_name],
+            "UPDATE address_groups SET name = ?1, updated_at = CURRENT_TIMESTAMP WHERE base_wallet_id = ?2 AND name = ?3",
+            params![new_name, base_wallet_id, old_name],
         ).context("Failed to rename address group")?;
 
         Ok(rows_affected > 0)
     }
 
     /// Deletes wallet group and all associated data (requires mnemonic verification)
-    pub fn delete_wallet_group(&self, master_account_id: i64, group_name: &str, mnemonic_verification: &str) -> Result<bool> {
-        // Verify mnemonic first
-        if let Some(master_account) = self.get_master_account_by_name(&format!("{}", master_account_id))? {
-            if master_account.mnemonic != mnemonic_verification {
-                bail!("Mnemonic verification failed. Cannot delete wallet group.");
-            }
-        } else {
-            return Ok(false);
-        }
-
+    pub fn delete_wallet_group(&self, master_account_id: i64, group_name: &str) -> Result<bool> {
+        // CLI layer has already validated mnemonic - just perform deletion
         let rows_affected = self.conn.execute(
             "DELETE FROM wallet_groups WHERE master_account_id = ?1 AND name = ?2",
             params![master_account_id, group_name],
@@ -1029,11 +1175,14 @@ impl Database {
     }
 
     /// Deletes address group and all associated addresses (requires mnemonic verification)
-    pub fn delete_address_group(&self, wallet_group_id: i64, address_group_name: &str, mnemonic_verification: &str) -> Result<bool> {
-        // Get master account for mnemonic verification
+    pub fn delete_address_group(&self, base_wallet_id: i64, address_group_name: &str, mnemonic_verification: &str) -> Result<bool> {
+        // Get master account for mnemonic verification through wallet chain
         let master_account_mnemonic: String = self.conn.query_row(
-            "SELECT ma.mnemonic FROM master_accounts ma JOIN wallet_groups wg ON ma.id = wg.master_account_id WHERE wg.id = ?1",
-            [wallet_group_id],
+            "SELECT ma.mnemonic FROM master_accounts ma
+             JOIN wallet_groups wg ON ma.id = wg.master_account_id
+             JOIN wallets w ON wg.id = w.wallet_group_id
+             WHERE w.id = ?1",
+            [base_wallet_id],
             |row| Ok(row.get(0)?)
         ).context("Failed to get master account mnemonic")?;
 
@@ -1042,23 +1191,23 @@ impl Database {
         }
 
         let rows_affected = self.conn.execute(
-            "DELETE FROM address_groups WHERE wallet_group_id = ?1 AND name = ?2",
-            params![wallet_group_id, address_group_name],
+            "DELETE FROM address_groups WHERE base_wallet_id = ?1 AND name = ?2",
+            params![base_wallet_id, address_group_name],
         ).context("Failed to delete address group")?;
 
         Ok(rows_affected > 0)
     }
 
-    /// Deletes individual wallet address (requires mnemonic verification for hierarchical addresses)
-    pub fn delete_wallet_address(&self, address: &str, mnemonic_verification: Option<&str>) -> Result<bool> {
-        // Check if this is an orphaned address or hierarchical address
-        let address_info: (Option<i64>, Option<i64>, String) = self.conn.query_row(
-            "SELECT wallet_group_id, address_group_id, source_type FROM wallet_addresses WHERE address = ?1",
+    /// Deletes individual wallet (requires mnemonic verification for hierarchical wallets)
+    pub fn delete_wallet(&self, address: &str, mnemonic_verification: Option<&str>) -> Result<bool> {
+        // Check if this is a standalone wallet or hierarchical wallet
+        let wallet_info: (Option<i64>, Option<i64>, String) = self.conn.query_row(
+            "SELECT wallet_group_id, address_group_id, source_type FROM wallets WHERE address = ?1",
             [address],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-        ).context("Failed to get address info")?;
+        ).context("Failed to get wallet info")?;
 
-        let (wallet_group_id, _address_group_id, source_type) = address_info;
+        let (wallet_group_id, _address_group_id, source_type) = wallet_info;
 
         // If hierarchical address, verify mnemonic
         if wallet_group_id.is_some() && source_type == "mnemonic" {
@@ -1078,21 +1227,21 @@ impl Database {
         }
 
         let rows_affected = self.conn.execute(
-            "DELETE FROM wallet_addresses WHERE address = ?1",
+            "DELETE FROM wallets WHERE address = ?1",
             params![address],
-        ).context("Failed to delete wallet address")?;
+        ).context("Failed to delete wallet")?;
 
         Ok(rows_affected > 0)
     }
-    /// Search wallet addresses by term, optionally filtered by blockchain
-    pub fn search_wallet_addresses(&self, term: &str, blockchain: Option<&str>) -> Result<Vec<WalletAddress>> {
+    /// Search wallets by term, optionally filtered by blockchain
+    pub fn search_wallets(&self, term: &str, blockchain: Option<&str>) -> Result<Vec<Wallet>> {
         let (query, params): (String, Vec<String>) = match blockchain {
             Some(chain) => (
                 r#"
                 SELECT id, wallet_group_id, address_group_id, blockchain, address, address_with_checksum,
-                       private_key, public_key, derivation_path, address_index, label,
+                       private_key, public_key, derivation_path, label,
                        source_type, explorer_url, notes, created_at
-                FROM wallet_addresses
+                FROM wallets
                 WHERE blockchain = ?1 AND (
                     label LIKE ?2 OR
                     address LIKE ?2 OR
@@ -1105,9 +1254,9 @@ impl Database {
             None => (
                 r#"
                 SELECT id, wallet_group_id, address_group_id, blockchain, address, address_with_checksum,
-                       private_key, public_key, derivation_path, address_index, label,
+                       private_key, public_key, derivation_path, label,
                        source_type, explorer_url, notes, created_at
-                FROM wallet_addresses
+                FROM wallets
                 WHERE label LIKE ?1 OR address LIKE ?1 OR blockchain LIKE ?1 OR notes LIKE ?1
                 ORDER BY created_at DESC
                 "#.to_string(),
@@ -1118,18 +1267,18 @@ impl Database {
         let mut stmt = self.conn.prepare(&query)
             .context("Failed to prepare search statement")?;
 
-        let address_iter = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
-            self.build_wallet_address_from_row(row)
-        }).context("Failed to search wallet addresses")?;
+        let wallet_iter = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
+            self.build_wallet_from_row(row)
+        }).context("Failed to search wallets")?;
 
-        let mut addresses = Vec::new();
-        for address_result in address_iter {
-            let address = address_result.context("Failed to parse wallet address")?;
-            let completed_address = self.complete_wallet_address(address)?;
-            addresses.push(completed_address);
+        let mut wallets = Vec::new();
+        for wallet_result in wallet_iter {
+            let wallet = wallet_result.context("Failed to parse wallet")?;
+            let completed_wallet = self.complete_wallet(wallet)?;
+            wallets.push(completed_wallet);
         }
 
-        Ok(addresses)
+        Ok(wallets)
     }
 
 }

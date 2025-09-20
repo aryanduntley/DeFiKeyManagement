@@ -7,7 +7,7 @@ pub struct ShowWalletGroupArgs {
     #[arg(long, help = "Name of the master account")]
     pub account: String,
     #[arg(long, help = "Name of the wallet group to show")]
-    pub group: String,
+    pub group_name: String,
     #[arg(long, help = "Include sensitive information (private keys)")]
     pub include_sensitive: bool,
 }
@@ -15,7 +15,7 @@ pub struct ShowWalletGroupArgs {
 pub fn execute(args: ShowWalletGroupArgs, db: &Database) -> Result<()> {
     println!("🔍 Wallet Group Details");
     println!("Master Account: {}", args.account);
-    println!("Group Name: {}", args.group);
+    println!("Group Name: {}", args.group_name);
 
     // Get master account by name
     let master_account = match db.get_master_account_by_name(&args.account)? {
@@ -27,10 +27,10 @@ pub fn execute(args: ShowWalletGroupArgs, db: &Database) -> Result<()> {
     };
 
     // Get wallet group by name
-    let wallet_group = match db.get_wallet_group_by_name(master_account.id.unwrap(), &args.group)? {
+    let wallet_group = match db.get_wallet_group_by_name(master_account.id.unwrap(), &args.group_name)? {
         Some(group) => group,
         None => {
-            println!("\n❌ Wallet group '{}' not found in account '{}'.", args.group, args.account);
+            println!("\n❌ Wallet group '{}' not found in account '{}'.", args.group_name, args.account);
             println!("   Use 'wallet-backup list-wallet-groups --account \"{}\"' to see available groups.", args.account);
             return Ok(());
         }
@@ -47,114 +47,46 @@ pub fn execute(args: ShowWalletGroupArgs, db: &Database) -> Result<()> {
         println!("   Description: {}", desc);
     }
 
-    // Get address groups for this wallet group
-    let address_groups = db.list_address_groups(wallet_group.id.unwrap(), None)
-        .context("Failed to list address groups")?;
+    // Get base wallets in this wallet group (address_group_id = NULL)
+    // These are the child private keys that belong directly to the wallet group
+    let wallets = db.get_wallets_by_wallet_group(wallet_group.id.unwrap())
+        .context("Failed to get wallets for wallet group")?;
 
-    if address_groups.is_empty() {
-        println!("\n📝 No blockchains added to this group yet.");
-        println!("   Add blockchains: wallet-backup add-blockchain --account \"{}\" --wallet-group \"{}\" --blockchains \"bitcoin,ethereum\"", args.account, args.group);
+    if wallets.is_empty() {
+        println!("\n📝 No wallets added to this group yet.");
+        println!("   Add a wallet: wallet-backup add-wallet --account \"{}\" --wallet-group \"{}\" --blockchain \"bitcoin\" --name \"MyWallet\"", args.account, args.group_name);
         return Ok(());
     }
 
-    println!("\n🔗 Blockchains ({} total):", address_groups.len());
-    println!("   {:<15} {:<20} {:<12} {:<15} {:<12}",
-             "Blockchain", "Address Group", "Group Index", "Address Count", "Created");
-    println!("   {}", "─".repeat(80));
+    println!("\n💰 Wallets ({}):", wallets.len());
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-    for addr_group in &address_groups {
-        println!("   {:<15} {:<20} {:<12} {:<15} {:<12}",
-                 addr_group.blockchain,
-                 truncate_string(&addr_group.name, 18),
-                 addr_group.address_group_index,
-                 addr_group.address_count,
-                 addr_group.created_at.format("%Y-%m-%d").to_string()
-        );
-    }
+    for (i, wallet) in wallets.iter().enumerate() {
+        let wallet_name = wallet.label.as_deref().unwrap_or("(unnamed)");
+        let derivation_path = wallet.derivation_path.as_deref().unwrap_or("N/A");
 
-    // Get wallet addresses for this group
-    println!("\n💰 Addresses:");
+        println!("   {}. 📱 {}", i + 1, wallet_name);
+        println!("      🔗 Blockchain: {}", wallet.blockchain);
+        println!("      📍 Address: {}", wallet.address);
+        println!("      🛤️  Path: {}", derivation_path);
 
-    let mut total_addresses = 0;
-    for addr_group in &address_groups {
-        let addresses = db.get_wallet_addresses_by_address_group(addr_group.id)
-            .context("Failed to get addresses for address group")?;
-
-        if addresses.is_empty() {
-            continue;
+        if args.include_sensitive {
+            println!("      🔒 Private Key: {}", wallet.private_key);
+        } else {
+            println!("      🔒 Private Key: (use --include-sensitive to view)");
         }
 
-        println!("\n   📋 {} ({} address{}):",
-                 addr_group.blockchain,
-                 addresses.len(),
-                 if addresses.len() == 1 { "" } else { "es" }
-        );
-
-        for addr in &addresses {
-            total_addresses += 1;
-
-            println!("      Address: {}", addr.address);
-
-            if let Some(checksum) = &addr.address_with_checksum {
-                if checksum != &addr.address {
-                    println!("      Checksum: {}", checksum);
-                }
-            }
-
-            if let Some(derivation_path) = &addr.derivation_path {
-                println!("      Derivation: {}", derivation_path);
-            }
-
-            if let Some(label) = &addr.label {
-                println!("      Label: {}", label);
-            }
-
-            if let Some(explorer) = &addr.explorer_url {
-                println!("      Explorer: {}", explorer);
-            }
-
-            if args.include_sensitive {
-                println!("      Private Key: {}", addr.private_key);
-                if let Some(public_key) = &addr.public_key {
-                    println!("      Public Key: {}", public_key);
-                }
-            }
-
-            // Show additional data if present
-            if !addr.additional_data.is_empty() {
-                println!("      Additional Data:");
-                for (key, value) in &addr.additional_data {
-                    println!("        {}: {}", key, value);
-                }
-            }
-
-            // Show secondary addresses if present
-            if !addr.secondary_addresses.is_empty() {
-                println!("      Secondary Addresses:");
-                for (addr_type, address) in &addr.secondary_addresses {
-                    println!("        {} format: {}", addr_type, address);
-                }
-            }
-
-            println!("      Created: {}", addr.created_at.format("%Y-%m-%d %H:%M:%S UTC"));
+        if i < wallets.len() - 1 {
             println!();
         }
     }
 
-    println!("📈 Summary:");
-    println!("   Total Blockchains: {}", address_groups.len());
-    println!("   Total Addresses: {}", total_addresses);
-    println!("   Derivation Account Index: {}", wallet_group.account_index);
-
-    if args.include_sensitive {
-        println!("\n⚠️  Sensitive information displayed. Keep this data secure!");
-    } else {
-        println!("\n💡 To view private keys, use: --include-sensitive");
-    }
 
     println!("\n💡 Next steps:");
-    println!("   • Add more blockchains: wallet-backup add-blockchain --account \"{}\" --wallet-group \"{}\" --blockchains \"<blockchain-list>\"", args.account, args.group);
-    println!("   • Generate more addresses: wallet-backup generate-address --account \"{}\" --wallet-group \"{}\" --blockchain \"<blockchain>\"", args.account, args.group);
+    println!("   • Add more wallets: wallet-backup add-wallet --account \"{}\" --wallet-group \"{}\" --blockchain \"<blockchain>\" --name \"<wallet-name>\"", args.account, args.group_name);
+    println!("   • List wallets only: wallet-backup list-wallets --account \"{}\" --wallet-group \"{}\"", args.account, args.group_name);
+    println!("   • Add address groups: wallet-backup add-address-group --account \"{}\" --wallet-group \"{}\" --wallet \"<wallet-name>\" --name \"<group-name>\"", args.account, args.group_name);
+    println!("   • View subwallets: wallet-backup list-subwallets --account \"{}\" --wallet-group \"{}\" --wallet \"<wallet-name>\" --address-group \"<group-name>\"", args.account, args.group_name);
 
     Ok(())
 }

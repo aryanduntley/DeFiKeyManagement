@@ -1,4 +1,3 @@
-use clap::Args;
 use anyhow::Result;
 use crate::database::Database;
 
@@ -275,12 +274,16 @@ pub fn handle_list_accounts(args: ListAccountsArgs, db: &Database) -> Result<()>
     hierarchy::master_account::list_accounts::execute(args, db)
 }
 
+pub fn handle_show_account(args: ShowAccountArgs, db: &Database) -> Result<()> {
+    hierarchy::master_account::show_account::execute(args, db)
+}
+
 pub fn handle_create_wallet_group(args: CreateWalletGroupArgs, db: &Database) -> Result<()> {
     hierarchy::wallet_group::create_wallet_group::execute(args, db)
 }
 
-pub fn handle_add_blockchain(args: AddBlockchainArgs, db: &Database) -> Result<()> {
-    hierarchy::blockchain::add_blockchain::execute(args, db)
+pub fn handle_add_wallet(args: AddWalletArgs, db: &Database) -> Result<()> {
+    hierarchy::blockchain::add_wallet::execute(args, db)
 }
 
 pub fn handle_list_wallet_groups(args: ListWalletGroupsArgs, db: &Database) -> Result<()> {
@@ -289,6 +292,110 @@ pub fn handle_list_wallet_groups(args: ListWalletGroupsArgs, db: &Database) -> R
 
 pub fn handle_show_wallet_group(args: ShowWalletGroupArgs, db: &Database) -> Result<()> {
     hierarchy::wallet_group::show_wallet_group::execute(args, db)
+}
+
+pub fn handle_show_address_group(args: ShowAddressGroupArgs, db: &Database) -> Result<()> {
+    hierarchy::address_group::show_address_group::execute(args, db)
+}
+
+pub fn handle_add_standalone_wallet(args: AddStandaloneWalletArgs, db: &Database) -> Result<()> {
+    hierarchy::standalone::add_standalone_wallet::execute(args, db)
+}
+
+pub fn handle_add_address_group(args: AddAddressGroupArgs, db: &Database) -> Result<()> {
+    hierarchy::address_group::add_address_group::execute(args, db)
+}
+
+pub fn handle_list_wallets(args: ListWalletsArgs, db: &Database) -> Result<()> {
+    hierarchy::wallet_group::list_wallets::execute(args, db)
+}
+
+pub fn handle_list_standalone_wallets(args: ListStandaloneWalletsArgs, db: &Database) -> Result<()> {
+    hierarchy::standalone::list_standalone_wallets::execute(args, db)
+}
+
+pub fn handle_list_address_groups(args: ListAddressGroupsArgs, db: &Database) -> Result<()> {
+    hierarchy::address_group::list_address_groups::execute(args, db)
+}
+
+pub fn handle_add_subwallet(args: AddSubwalletArgs, db: &Database) -> Result<()> {
+    hierarchy::subwallet::add_subwallet::execute(args, db)
+}
+
+pub fn handle_list_subwallets(args: ListSubwalletsArgs, db: &Database) -> Result<()> {
+    hierarchy::subwallet::list_subwallets::execute(args, db)
+}
+
+pub fn handle_list_cryptocurrencies(args: ListCryptocurrenciesArgs, db: &Database) -> Result<()> {
+    hierarchy::utility::list_cryptocurrencies::execute(args, db)
+}
+
+pub fn handle_rename_wallet_group(args: RenameWalletGroupArgs, db: &Database) -> Result<()> {
+    hierarchy::rename::rename_wallet_group::execute(args, db)
+}
+
+pub fn handle_rename_address_group(args: RenameAddressGroupArgs, db: &Database) -> Result<()> {
+    hierarchy::rename::rename_address_group::execute(args, db)
+}
+
+pub fn handle_rename_wallet(args: RenameWalletArgs, db: &Database) -> Result<()> {
+    hierarchy::rename::rename_wallet::execute(args, db)
+}
+
+pub fn handle_rename_subwallet(args: RenameSubwalletArgs, db: &Database) -> Result<()> {
+    hierarchy::rename::rename_subwallet::execute(args, db)
+}
+
+pub fn handle_rename_standalone_wallet(args: RenameStandaloneWalletArgs, db: &Database) -> Result<()> {
+    hierarchy::rename::rename_standalone_wallet::execute(args, db)
+}
+
+pub fn handle_remove_account(args: RemoveAccountArgs, db: &Database) -> Result<()> {
+    hierarchy::remove::remove_account::execute(args, db)
+}
+
+pub fn handle_remove_wallet_group(args: RemoveWalletGroupArgs, db: &Database) -> Result<()> {
+    hierarchy::remove::remove_wallet_group::execute(args, db)
+}
+
+pub fn handle_remove_address_group(args: RemoveAddressGroupArgs, db: &Database) -> Result<()> {
+    hierarchy::remove::remove_address_group::execute(args, db)
+}
+
+pub fn handle_remove_wallet(args: RemoveWalletArgs, db: &Database) -> Result<()> {
+    hierarchy::remove::remove_wallet::execute(args, db)
+}
+
+pub fn handle_remove_subwallet(args: RemoveSubwalletArgs, db: &Database) -> Result<()> {
+    hierarchy::remove::remove_subwallet::execute(args, db)
+}
+
+pub fn handle_remove_standalone_wallet(args: RemoveStandaloneWalletArgs, db: &Database) -> Result<()> {
+    hierarchy::remove::remove_standalone_wallet::execute(args, db)
+}
+
+pub fn handle_modify_wallet(args: ModifyWalletArgs, db: &Database) -> Result<()> {
+    hierarchy::wallet::modify_wallet::execute(args, db)
+}
+
+pub fn handle_show_wallet(args: ShowWalletArgs, db: &Database) -> Result<()> {
+    hierarchy::wallet::show_wallet::execute(args, db)
+}
+
+pub fn handle_show_subwallet(args: ShowSubwalletArgs, db: &Database) -> Result<()> {
+    hierarchy::subwallet::show_subwallet::execute(args, db)
+}
+
+pub fn handle_show_standalone_wallet(args: ShowStandaloneWalletArgs, db: &Database) -> Result<()> {
+    hierarchy::standalone::show_standalone_wallet::execute(args, db)
+}
+
+pub fn handle_modify_subwallet(args: ModifySubwalletArgs, db: &Database) -> Result<()> {
+    hierarchy::subwallet::modify_subwallet::execute(args, db)
+}
+
+pub fn handle_modify_standalone_wallet(args: ModifyStandaloneWalletArgs, db: &Database) -> Result<()> {
+    hierarchy::standalone::modify_standalone_wallet::execute(args, db)
 }
 
 // Legacy command handlers (TEMPORARILY DISABLED)

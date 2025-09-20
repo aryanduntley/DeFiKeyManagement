@@ -1,27 +1,29 @@
 # DeFi Key Management Tool
 
-A self-contained, cross-platform command-line tool for multi-chain wallet backup and key management. Provides users with complete local control over their cryptocurrency private keys and addresses across 20 blockchains with advanced multi-wallet support.
+A self-contained, cross-platform command-line tool for enterprise-grade hierarchical wallet management. Provides complete local control over cryptocurrency private keys across 20+ blockchains with advanced 5-level organizational structure.
 
 ## ✨ Features
 
+### 🏗️ 5-Level Hierarchical Organization
+```
+Master Account → Wallet Group → Base Wallet → Address Group → Subwallets
+     ↓              ↓              ↓              ↓           ↓
+  TestAccount → MyPersonalWallet → MyBitcoinWallet → receiving → addr1, addr2, addr3
+```
+
 ### Core Capabilities
-- **20 Native Blockchains**: Bitcoin, Ethereum, Solana, XRP, Stellar, Cardano, TRON, Polygon, Optimism, Cronos, Binance BNB, Cosmos, Algorand, Hedera, Polkadot, Sui, IOTA, TON, XDC, Litecoin
-- **Multi-Wallet Support**: Import and manage wallets from different apps (MetaMask, Trust Wallet, etc.) as organized groups
-- **Selective Blockchain Derivation**: Choose specific blockchains per mnemonic (no forced derivation of all 20)
-- **BIP Standards Compliant**: Full support for BIP-32, BIP-39, BIP-44, SLIP-0010, and SLIP-0044
-- **Cross-Platform**: Single binary for Linux, Windows, macOS (Android support planned)
+- **20+ Native Blockchains**: Bitcoin, Ethereum, Solana, XRP, Stellar, Cardano, TRON, Polygon, Optimism, Cronos, Binance BNB, Cosmos, Algorand, Hedera, Polkadot, Sui, IOTA, TON, XDC, Litecoin
+- **Hierarchical Deterministic (HD) Wallets**: Full BIP-32, BIP-39, BIP-44 compliance with proper key derivation
+- **Enterprise Organization**: Multi-level hierarchy for complex portfolio management
+- **Standalone Wallet Support**: Import individual private keys alongside HD wallets
+- **Cross-Platform**: Single binary for Linux, Windows, macOS
 
 ### Security & Privacy
 - **Local Storage**: All data stored locally in SQLite - no network requests or cloud dependencies
 - **Self-Sovereign**: Complete control over private keys with no third-party access
-- **Mnemonic Privacy**: SHA-256 hashing for secure mnemonic storage
+- **Mnemonic Verification**: Cryptographic validation for all removal operations
+- **Bottom-Up Security**: Only empty groups can be removed (prevents orphaned wallets)
 - **Air-Gapped Capable**: Works completely offline
-
-### Import & Export
-- **Import Flexibility**: Support for mnemonic phrases (with optional passphrases) and private keys
-- **Bulk Operations**: Import one mnemonic across multiple blockchains in a single command
-- **Export Capabilities**: JSON and CSV export formats for backup purposes
-- **Enhanced Database**: Secondary addresses, checksums, and blockchain-specific metadata support
 
 ## 🚀 Installation
 
@@ -35,336 +37,444 @@ cargo build --release
 
 ## 📘 CLI Commands Reference
 
-### Multi-Wallet Commands
+### 🏛️ Master Account Management
 
-#### `import-multi` - Bulk Wallet Import
-Import one mnemonic across multiple blockchains in a single operation.
-
+#### Create Master Account
 ```bash
-# Import Bitcoin-only wallet (single blockchain)
-wallet-backup import-multi \
-  --mnemonic "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" \
-  --group-name "Trezor_Bitcoin" \
-  --description "Hardware wallet" \
-  --blockchains "bitcoin"
+# From new mnemonic (auto-generated)
+wallet-backup add-account --account "MyMainAccount"
 
-# Import MetaMask with 5 networks (selective multi-blockchain)
-wallet-backup import-multi \
-  --mnemonic "your twelve word mnemonic phrase goes here for importing wallets" \
-  --group-name "MetaMask_Main" \
-  --description "Main MetaMask wallet" \
-  --blockchains "ethereum,polygon,binance,optimism,cronos"
-
-# Import with default popular blockchains (if --blockchains not specified)
-wallet-backup import-multi \
-  --mnemonic "your mnemonic phrase here" \
-  --group-name "TrustWallet_DeFi"
-# Defaults to: bitcoin,ethereum,solana,polygon,binance
-```
-
-**Parameters:**
-- `--mnemonic` (required): BIP-39 mnemonic seed phrase
-- `--group-name` (required): Unique name for the wallet group
-- `--description` (optional): Group description
-- `--blockchains` (optional): Comma-separated list of blockchains (defaults to popular 5)
-- `--passphrase` (optional): Optional mnemonic passphrase
-- `--account` (optional): Account index (default: 0)
-- `--address-index` (optional): Address index (default: 0)
-
-#### `list-groups` - Display Wallet Groups
-Show all wallet groups with summary information.
-
-```bash
-wallet-backup list-groups
-```
-
-**Output:**
-```
-Wallet Groups:
---------------------------------------------------------------------------------
-Group Name                Blockchains     Wallets  Created                             Description
---------------------------------------------------------------------------------
-MetaMask_Main             ethereum, po... 5        2025-09-15 19:57                    Main MetaMask wallet
-Trezor_Bitcoin            bitcoin         1        2025-09-15 20:15                    Hardware wallet
---------------------------------------------------------------------------------
-Total: 2 wallet group(s)
-```
-
-#### `show-group` - Display Group Details
-Show detailed information for all wallets in a specific group.
-
-```bash
-# Show group without sensitive data
-wallet-backup show-group "MetaMask_Main"
-
-# Show group with private keys and mnemonics
-wallet-backup show-group "MetaMask_Main" --include-sensitive
-```
-
-**Parameters:**
-- `group_name` (required): Name of the wallet group to display
-- `--include-sensitive` (optional): Show private keys and mnemonics
-
-**Output:**
-```
-Wallet Group Details:
---------------------------------------------------------------------------------
-📁 Group: MetaMask_Main
-📝 Description: Main MetaMask wallet
-🔗 Blockchains: ethereum, polygon, binance, optimism, cronos
-📅 Created: 2025-09-15 19:57:26 UTC
-
-💰 Wallets (5 total):
---------------------------------------------------------------------------------
-
-🔸 ETHEREUM (1 wallet)
-  ├─ 📍 Address: 0x9858EfFD232B4033E47d90003D41EC34EcaEda94
-  ├─ 🛤️  Path: m/44'/60'/0'/0/0
-  ├─ 🔢 Account: 0, Index: 0
-  ├─ 🔍 Explorer: https://etherscan.io/address/0x9858EfFD232B4033E47d90003D41EC34EcaEda94
-  └─ 🏷️  Label: MetaMask_Main_ethereum
-```
-
-#### `derive-multi` - Add Blockchains to Existing Group
-Add new blockchains to an existing wallet group.
-
-```bash
-# Add Cardano and Polkadot to existing MetaMask group
-wallet-backup derive-multi \
-  --group-name "MetaMask_Main" \
-  --blockchains "cardano,polkadot" \
-  --mnemonic "your original mnemonic phrase"
-
-# Add multiple blockchains with custom account
-wallet-backup derive-multi \
-  --group-name "TrustWallet" \
-  --blockchains "sui,algorand,cosmos" \
-  --mnemonic "your mnemonic phrase" \
-  --account 1
-```
-
-**Parameters:**
-- `--group-name` (required): Name of existing wallet group to extend
-- `--blockchains` (required): Comma-separated list of blockchains to add
-- `--mnemonic` (required): Original mnemonic phrase (for verification)
-- `--passphrase` (optional): BIP-39 passphrase if used
-- `--account` (optional): Account index (default: 0)
-- `--address-index` (optional): Address index (default: 0)
-
-#### `rename-group` - Rename Wallet Group
-Change the name of an existing wallet group and update associated wallet labels.
-
-```bash
-# Rename a wallet group
-wallet-backup rename-group \
-  --old-name "MetaMask_Main" \
-  --new-name "MetaMask_Primary"
-
-# Rename without confirmation prompt
-wallet-backup rename-group \
-  --old-name "OldName" \
-  --new-name "NewName" \
-  --force
-```
-
-**Parameters:**
-- `--old-name` (required): Current group name
-- `--new-name` (required): New group name
-- `--force` (optional): Skip confirmation prompt
-
-### Individual Wallet Commands
-
-#### `import` - Import Single Wallet
-Add a new wallet from mnemonic phrase or private key.
-
-```bash
-# From mnemonic (auto-infer derivation path)
-wallet-backup import \
-  --mnemonic "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" \
-  --blockchain ethereum \
-  --label "Main ETH"
-
-# From mnemonic with passphrase
-wallet-backup import \
-  --mnemonic "your mnemonic phrase here" \
-  --passphrase "extra-salt" \
-  --blockchain bitcoin \
-  --label "Cold BTC"
-
-# From private key
-wallet-backup import \
-  --private-key 0xabc123... \
-  --blockchain solana \
-  --label "Imported SOL"
-
-# Custom derivation path (optional override)
-wallet-backup import \
-  --mnemonic "your mnemonic phrase" \
-  --blockchain ethereum \
-  --custom-path "m/44'/60'/1'/0/0" \
-  --label "ETH Account 1"
-```
-
-**Parameters:**
-- `--mnemonic` or `--private-key` (required): Source for wallet generation
-- `--blockchain` (required): Target blockchain
-- `--label` (optional): User-friendly wallet name
-- `--passphrase` (optional): BIP-39 passphrase (25th word)
-- `--custom-path` (optional): Override default derivation path
-
-#### `derive` - Generate Multiple Addresses
-Generate multiple addresses from a mnemonic phrase.
-
-```bash
-# Derive multiple addresses from mnemonic
-wallet-backup derive \
-  --mnemonic "your mnemonic phrase" \
-  --blockchain ethereum \
-  --count 5
-
-# Derive specific account/index
-wallet-backup derive \
-  --mnemonic "your mnemonic phrase" \
-  --blockchain bitcoin \
-  --account 0 \
-  --index 10
+# From existing mnemonic
+wallet-backup add-account \
+  --account "ImportedAccount" \
+  --mnemonic "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 
 # With passphrase
-wallet-backup derive \
-  --mnemonic "your mnemonic phrase" \
-  --passphrase "salt" \
-  --blockchain ethereum \
-  --count 3
+wallet-backup add-account \
+  --account "SecureAccount" \
+  --mnemonic "your mnemonic phrase here" \
+  --passphrase "additional-security-phrase"
 ```
 
-**Parameters:**
-- `--mnemonic` (required): BIP-39 mnemonic seed phrase
-- `--blockchain` (required): Target blockchain
-- `--passphrase` (optional): Optional mnemonic passphrase
-- `--account` (optional): Account index (default: 0)
-- `--index` (optional): Starting address index (default: 0)
-- `--count` (optional): Number of addresses to derive (default: 1)
-- `--custom-path` (optional): Custom derivation path template
-
-#### `list` - Show All Wallets
-Display all stored wallets in a table format.
-
+#### List Master Accounts
 ```bash
-wallet-backup list
+wallet-backup list-accounts
 ```
 
-**Output:**
-```
-Label         Blockchain   Address                                   Path
-------------  -----------  ----------------------------------------  ----------------------
-Main ETH      ethereum     0xABC123...                               m/44'/60'/0'/0/0
-Cold BTC      bitcoin      1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa         m/44'/0'/0'/0/0
-SOL Hot       solana       9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYt...  m/44'/501'/0'/0'
-```
-
-#### `show` - Display Wallet Details
-Show detailed information for a specific wallet.
-
+#### Show Master Account Details
 ```bash
-# Show by address
-wallet-backup show --address 0xABC123
+# View account summary
+wallet-backup show-account --account "MyMainAccount"
 
-# Show by label
-wallet-backup show --label "Main ETH"
-
-# Include sensitive data (private key, mnemonic)
-wallet-backup show --label "Main ETH" --include-sensitive
+# View account with sensitive data (mnemonic phrase and passphrase)
+wallet-backup show-account --account "MyMainAccount" --include-sensitive
 ```
 
-**Parameters:**
-- `--address` or `--label` (required): Wallet identifier
-- `--include-sensitive` (optional): Show private keys and mnemonics
-
-#### `get` - Quick Wallet Retrieval
-Shorthand command for showing wallet by label.
-
+#### Remove Master Account
 ```bash
-# Quick wallet retrieval by label
-wallet-backup get "Main ETH"
-
-# With sensitive data
-wallet-backup get "Main ETH" --include-sensitive
+# Removes entire hierarchy (requires mnemonic verification)
+wallet-backup remove-account \
+  --account "AccountToRemove" \
+  --mnemonic "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 ```
 
-**Parameters:**
-- `name` (required): Wallet label
-- `--include-sensitive` (optional): Show private keys and mnemonics
+### 📁 Wallet Group Management
 
-### Management Commands
-
-#### `export` - Backup Data
-Export wallet data for backup purposes.
-
+#### Create Wallet Group
 ```bash
-# Export all wallets (public data only)
-wallet-backup export --format json --output backup.json
-
-# Export specific wallet
-wallet-backup export \
-  --label "Main ETH" \
-  --format json \
-  --include-sensitive \
-  --output eth-backup.json
-
-# Export to CSV
-wallet-backup export --format csv --output wallets.csv
+wallet-backup add-wallet-group \
+  --account "MyMainAccount" \
+  --name "PersonalWallets" \
+  --description "Personal cryptocurrency wallets"
 ```
 
-**Parameters:**
-- `--format` (optional): Export format (json, csv) - default: json
-- `--output` (optional): Output file path
-- `--address` or `--label` (optional): Export specific wallet
-- `--include-sensitive` (optional): Include private keys in export
-
-#### `delete` - Remove Wallet
-Remove a wallet from the database.
-
+#### List Wallet Groups
 ```bash
-# Delete by address
-wallet-backup delete --address 0xABC123
-
-# Delete by label with confirmation skip
-wallet-backup delete --label "Old Wallet" --force
+wallet-backup list-wallet-groups --account "MyMainAccount"
 ```
 
-**Parameters:**
-- `--address` or `--label` (required): Wallet identifier
-- `--force` (optional): Skip confirmation prompt
-
-#### `tag` - Update Wallet Label
-Change the label/name of an existing wallet.
-
+#### Show Wallet Group Details
 ```bash
-# Update by address
-wallet-backup tag --address 0xABC123 --label "New Label"
+# View wallet group with all wallets (public info only)
+wallet-backup show-wallet-group \
+  --account "MyMainAccount" \
+  --group-name "PersonalWallets"
 
-# Update by current label
-wallet-backup tag --current-label "Old Name" --label "New Name"
+# View wallet group with private keys visible
+wallet-backup show-wallet-group \
+  --account "MyMainAccount" \
+  --group-name "PersonalWallets" \
+  --include-sensitive
 ```
 
-**Parameters:**
-- `--address` or `--current-label` (required): Wallet identifier
-- `--label` (required): New label for the wallet
-
-#### `search` - Find Wallets
-Search for wallets by term or blockchain.
-
+#### Remove Wallet Group
 ```bash
-# Search by term
-wallet-backup search --term "btc"
-
-# Search by blockchain
-wallet-backup search --blockchain ethereum
+# Only works if group is empty
+wallet-backup remove-wallet-group \
+  --account "MyMainAccount" \
+  --wallet-group "EmptyGroup" \
+  --mnemonic "your mnemonic phrase"
 ```
 
-**Parameters:**
-- `--term` (required): Search term
-- `--blockchain` (optional): Filter by specific blockchain
+### 💰 Base Wallet Management
+
+#### Add Base Wallet
+```bash
+# Create Bitcoin wallet
+wallet-backup add-wallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --blockchain "bitcoin" \
+  --name "MyBitcoinWallet"
+
+# Create Ethereum wallet with custom derivation
+wallet-backup add-wallet \
+  --account "MyMainAccount" \
+  --wallet-group "TradingWallets" \
+  --blockchain "ethereum" \
+  --name "ETH-Trading" \
+  --account-index 1
+```
+
+#### List Base Wallets
+```bash
+wallet-backup list-wallets \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets"
+```
+
+#### Show Base Wallet Details
+```bash
+# View wallet details (public info only)
+wallet-backup show-wallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet"
+
+# View wallet with private key
+wallet-backup show-wallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --include-sensitive
+```
+
+#### Modify Base Wallet Properties
+```bash
+# Interactive modification mode (default)
+wallet-backup modify-wallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet-name "MyBitcoinWallet"
+
+# Direct modification with flags
+wallet-backup modify-wallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet-name "MyBitcoinWallet" \
+  --label "Updated Bitcoin Wallet" \
+  --notes "Primary trading wallet" \
+  --add-data "exchange=binance" \
+  --add-secondary "legacy=1BTC123..."
+
+# Modify by address instead of name
+wallet-backup modify-wallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --address "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh" \
+  --label "New Label"
+```
+
+#### Remove Base Wallet
+```bash
+wallet-backup remove-wallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet-name "OldWallet" \
+  --mnemonic "your mnemonic phrase"
+```
+
+### 🗂️ Address Group Management
+
+#### Create Address Group
+```bash
+wallet-backup add-address-group \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --name "receiving" \
+  --description "Receiving addresses"
+```
+
+#### List Address Groups
+```bash
+wallet-backup list-address-groups \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet"
+```
+
+#### Show Address Group Details
+```bash
+# View address group with all subwallets (public info only)
+wallet-backup show-address-group \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --group-name "receiving"
+
+# View address group with private keys visible
+wallet-backup show-address-group \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --group-name "receiving" \
+  --include-sensitive
+```
+
+#### Remove Address Group
+```bash
+# Only works if group is empty
+wallet-backup remove-address-group \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --address-group "EmptyGroup" \
+  --mnemonic "your mnemonic phrase"
+```
+
+### 🏠 Subwallet Management
+
+#### Add Subwallet
+```bash
+wallet-backup add-subwallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --address-group "receiving" \
+  --name "addr1"
+
+# Multiple subwallets
+wallet-backup add-subwallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --address-group "receiving" \
+  --name "addr2"
+```
+
+#### List Subwallets
+```bash
+wallet-backup list-subwallets \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --address-group "receiving"
+```
+
+#### Show Subwallet Details
+```bash
+# View subwallet details (public info only)
+wallet-backup show-subwallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --address-group "receiving" \
+  --subwallet "addr1"
+
+# View subwallet with private key
+wallet-backup show-subwallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --address-group "receiving" \
+  --subwallet "addr1" \
+  --include-sensitive
+```
+
+#### Modify Subwallet Properties
+```bash
+# Interactive modification mode (default)
+wallet-backup modify-subwallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --address-group "receiving" \
+  --subwallet-name "addr1"
+
+# Direct modification with flags
+wallet-backup modify-subwallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --address-group "receiving" \
+  --subwallet-name "addr1" \
+  --label "Primary Receiving Address" \
+  --notes "Used for customer payments" \
+  --add-data "purpose=payments"
+
+# Modify by address instead of name
+wallet-backup modify-subwallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --address-group "receiving" \
+  --address "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh" \
+  --notes "Updated via address lookup"
+```
+
+#### Remove Subwallet
+```bash
+wallet-backup remove-subwallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --wallet "MyBitcoinWallet" \
+  --address-group "receiving" \
+  --subwallet-name "addr1" \
+  --mnemonic "your mnemonic phrase"
+```
+
+### 🔧 Standalone Wallet Management
+
+#### Add Standalone Wallet
+```bash
+# Import from private key
+wallet-backup add-standalone-wallet \
+  --private-key "your-private-key-here" \
+  --blockchain "ethereum" \
+  --name "ImportedETH"
+```
+
+#### List Standalone Wallets
+```bash
+wallet-backup list-standalone-wallets
+```
+
+#### Show Standalone Wallet Details
+```bash
+# View standalone wallet by name (public info only)
+wallet-backup show-standalone-wallet --name "ImportedETH"
+
+# View standalone wallet by address (public info only)
+wallet-backup show-standalone-wallet --address "0x742d35Cc6634C0532925a3b8D1b9f25C4e3DaF0"
+
+# View standalone wallet with private key
+wallet-backup show-standalone-wallet --name "ImportedETH" --include-sensitive
+```
+
+#### Modify Standalone Wallet Properties
+```bash
+# Interactive modification mode (default) - by name
+wallet-backup modify-standalone-wallet --name "ImportedETH"
+
+# Interactive modification mode (default) - by address
+wallet-backup modify-standalone-wallet --address "0x742d35Cc6634C0532925a3b8D1b9f25C4e3DaF0"
+
+# Direct modification with flags
+wallet-backup modify-standalone-wallet \
+  --name "ImportedETH" \
+  --label "Coinbase Import" \
+  --notes "Imported from Coinbase exchange" \
+  --add-data "source=coinbase" \
+  --add-data "import-date=2024-01-15" \
+  --add-secondary "legacy=0x123..."
+```
+
+#### Remove Standalone Wallet
+```bash
+wallet-backup remove-standalone-wallet \
+  --wallet-name "ImportedETH" \
+  --private-key "your-private-key-here"
+```
+
+## 🏁 Quick Start: Complete 5-Level Hierarchy
+
+### Create a Complete Portfolio
+```bash
+# 1. Create master account
+wallet-backup add-account --account "Portfolio2024"
+
+# 2. Create wallet group for personal funds
+wallet-backup add-wallet-group \
+  --account "Portfolio2024" \
+  --name "PersonalFunds" \
+  --description "Personal cryptocurrency portfolio"
+
+# 3. Create Bitcoin base wallet
+wallet-backup add-wallet \
+  --account "Portfolio2024" \
+  --wallet-group "PersonalFunds" \
+  --blockchain "bitcoin" \
+  --name "MainBitcoin"
+
+# 4. Create address groups for organization
+wallet-backup add-address-group \
+  --account "Portfolio2024" \
+  --wallet-group "PersonalFunds" \
+  --wallet "MainBitcoin" \
+  --name "receiving" \
+  --description "Incoming payments"
+
+wallet-backup add-address-group \
+  --account "Portfolio2024" \
+  --wallet-group "PersonalFunds" \
+  --wallet "MainBitcoin" \
+  --name "change" \
+  --description "Change addresses"
+
+# 5. Generate multiple subwallet addresses
+wallet-backup add-subwallet \
+  --account "Portfolio2024" \
+  --wallet-group "PersonalFunds" \
+  --wallet "MainBitcoin" \
+  --address-group "receiving" \
+  --name "payment1"
+
+wallet-backup add-subwallet \
+  --account "Portfolio2024" \
+  --wallet-group "PersonalFunds" \
+  --wallet "MainBitcoin" \
+  --address-group "receiving" \
+  --name "payment2"
+
+# 6. View the complete hierarchy
+wallet-backup show-wallet-group \
+  --account "Portfolio2024" \
+  --group-name "PersonalFunds"
+```
+
+### Create Multi-Blockchain Setup
+```bash
+# Add Ethereum wallet to same group
+wallet-backup add-wallet \
+  --account "Portfolio2024" \
+  --wallet-group "PersonalFunds" \
+  --blockchain "ethereum" \
+  --name "MainEthereum"
+
+# Create address group for DeFi
+wallet-backup add-address-group \
+  --account "Portfolio2024" \
+  --wallet-group "PersonalFunds" \
+  --wallet "MainEthereum" \
+  --name "defi" \
+  --description "DeFi protocol addresses"
+
+# Generate DeFi addresses
+wallet-backup add-subwallet \
+  --account "Portfolio2024" \
+  --wallet-group "PersonalFunds" \
+  --wallet "MainEthereum" \
+  --address-group "defi" \
+  --name "uniswap"
+
+wallet-backup add-subwallet \
+  --account "Portfolio2024" \
+  --wallet-group "PersonalFunds" \
+  --wallet "MainEthereum" \
+  --address-group "defi" \
+  --name "compound"
+```
 
 ## 🌐 Supported Blockchains
 
@@ -391,200 +501,205 @@ wallet-backup search --blockchain ethereum
 | IOTA | 4218 | ed25519 | m/44'/4218'/0'/0'/0' | ✅ |
 | XDC | 550 | secp256k1 | m/44'/550'/0'/0/0 | ✅ |
 
-## 🏁 Quick Start Examples
-
-### Multi-Wallet Workflow
-```bash
-# 1. Import MetaMask mnemonic across 5 blockchains
-wallet-backup import-multi \
-  --mnemonic "your twelve word mnemonic phrase here" \
-  --group-name "MetaMask_Main" \
-  --blockchains "ethereum,polygon,binance,optimism,cronos"
-
-# 2. List all wallet groups
-wallet-backup list-groups
-
-# 3. View detailed group information
-wallet-backup show-group "MetaMask_Main"
-
-# 4. View with sensitive data (private keys)
-wallet-backup show-group "MetaMask_Main" --include-sensitive
-
-# 5. Add more blockchains to existing group
-wallet-backup derive-multi \
-  --group-name "MetaMask_Main" \
-  --blockchains "cardano,solana,polkadot" \
-  --mnemonic "your twelve word mnemonic phrase here"
-
-# 6. Rename the group
-wallet-backup rename-group \
-  --old-name "MetaMask_Main" \
-  --new-name "MetaMask_Primary"
-```
-
-### Single Wallet Workflow
-```bash
-# 1. Import individual wallets
-wallet-backup import --mnemonic "your mnemonic" --blockchain bitcoin --label "BTC Cold"
-wallet-backup import --mnemonic "your mnemonic" --blockchain ethereum --label "ETH Hot"
-
-# 2. Generate multiple addresses
-wallet-backup derive --mnemonic "your mnemonic" --blockchain ethereum --count 10
-
-# 3. List all wallets
-wallet-backup list
-
-# 4. Export for backup
-wallet-backup export --format json --output backup.json
-```
-
-### Group Management Workflow
-```bash
-# 1. Create initial group with selected blockchains
-wallet-backup import-multi \
-  --mnemonic "your mnemonic phrase" \
-  --group-name "Portfolio_Main" \
-  --blockchains "bitcoin,ethereum"
-
-# 2. Later, add DeFi blockchains
-wallet-backup derive-multi \
-  --group-name "Portfolio_Main" \
-  --blockchains "polygon,binance,cronos,optimism" \
-  --mnemonic "your mnemonic phrase"
-
-# 3. Add cutting-edge blockchains
-wallet-backup derive-multi \
-  --group-name "Portfolio_Main" \
-  --blockchains "sui,cardano,polkadot,solana" \
-  --mnemonic "your mnemonic phrase"
-
-# 4. Rename for better organization
-wallet-backup rename-group \
-  --old-name "Portfolio_Main" \
-  --new-name "CompletePortfolio_2024"
-
-# 5. View final result
-wallet-backup show-group "CompletePortfolio_2024"
-```
-
-### Import from Different Sources
-```bash
-# From Trust Wallet mnemonic
-wallet-backup import-multi \
-  --mnemonic "trust wallet twelve word phrase here" \
-  --group-name "TrustWallet" \
-  --blockchains "bitcoin,ethereum,binance"
-
-# From hardware wallet (Bitcoin only)
-wallet-backup import-multi \
-  --mnemonic "hardware wallet phrase here" \
-  --group-name "Ledger_Bitcoin" \
-  --blockchains "bitcoin" \
-  --description "Ledger hardware wallet"
-
-# From individual private key
-wallet-backup import \
-  --private-key 0xabc123... \
-  --blockchain ethereum \
-  --label "Imported ETH Key"
-```
-
-## 🔐 Security Features
-
-- **Local-Only Operation**: No network requests, RPC connections, or balance queries
-- **Air-Gapped Capable**: Works completely offline
-- **Private Key Control**: Keys never leave your local system
-- **SQLite Storage**: Local database with comprehensive data integrity
-- **Explorer Links**: Generate read-only blockchain explorer URLs (no API keys required)
-- **Mnemonic Hashing**: SHA-256 hashing for secure mnemonic phrase storage
-
 ## 💾 Database Schema
 
-The tool creates a local SQLite database (`wallets.db`) with enhanced schema supporting multi-wallet features:
+The tool creates a local SQLite database (`wallets.db`) with a sophisticated 5-level hierarchical schema:
 
 ```sql
--- Core wallets table with enhanced features
-CREATE TABLE wallets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    label TEXT,
-    blockchain TEXT NOT NULL,
-    address TEXT NOT NULL UNIQUE,
-    address_with_checksum TEXT,
-    public_key TEXT,
-    private_key TEXT,
-    mnemonic TEXT,
-    passphrase TEXT,
-    derivation_path TEXT NOT NULL,
-    account INTEGER,
-    address_index INTEGER,
-    source_type TEXT NOT NULL,
-    explorer_url TEXT,
-    group_id INTEGER REFERENCES wallet_groups(id),
-    imported_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    notes TEXT
-);
-
--- Wallet groups for multi-wallet management
-CREATE TABLE wallet_groups (
+-- Master accounts (Level 1)
+CREATE TABLE master_accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
-    description TEXT,
-    mnemonic_hash TEXT NOT NULL,
+    mnemonic TEXT NOT NULL,
+    master_private_key TEXT NOT NULL,
+    passphrase TEXT DEFAULT '',
+    next_account_index INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Blockchain associations per group
-CREATE TABLE wallet_group_blockchains (
+-- Wallet groups (Level 2)
+CREATE TABLE wallet_groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    group_id INTEGER NOT NULL,
+    master_account_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    account_index INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (master_account_id) REFERENCES master_accounts(id) ON DELETE CASCADE
+);
+
+-- Address groups (Level 3)
+CREATE TABLE address_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    wallet_group_id INTEGER NOT NULL,
+    base_wallet_id INTEGER NOT NULL,
     blockchain TEXT NOT NULL,
-    FOREIGN KEY (group_id) REFERENCES wallet_groups(id) ON DELETE CASCADE,
-    UNIQUE(group_id, blockchain)
+    name TEXT NOT NULL,
+    address_group_index INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (wallet_group_id) REFERENCES wallet_groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (base_wallet_id) REFERENCES wallets(id) ON DELETE CASCADE
 );
 
--- Secondary addresses (EVM, legacy formats, etc.)
-CREATE TABLE wallet_secondary_addresses (
+-- Wallets (Levels 4 & 5: Base wallets and Subwallets)
+CREATE TABLE wallets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    wallet_id INTEGER NOT NULL,
-    address_type TEXT NOT NULL,
-    address TEXT NOT NULL,
-    FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON DELETE CASCADE
-);
-
--- Additional blockchain-specific metadata
-CREATE TABLE wallet_additional_data (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    wallet_id INTEGER NOT NULL,
-    key TEXT NOT NULL,
-    value TEXT NOT NULL,
-    FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON DELETE CASCADE
+    wallet_group_id INTEGER,
+    address_group_id INTEGER,
+    blockchain TEXT NOT NULL,
+    address TEXT NOT NULL UNIQUE,
+    public_key TEXT,
+    private_key TEXT NOT NULL,
+    derivation_path TEXT NOT NULL,
+    address_index INTEGER,
+    label TEXT,
+    wallet_type TEXT NOT NULL DEFAULT 'hierarchical',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (wallet_group_id) REFERENCES wallet_groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (address_group_id) REFERENCES address_groups(id) ON DELETE CASCADE
 );
 ```
 
+## 🔐 Security Features
+
+### Enterprise-Grade Security
+- **Cryptographic Validation**: All removal operations require mnemonic verification
+- **Bottom-Up Safety**: Empty-only group removal prevents orphaned wallets
+- **Local-Only Operation**: No network requests, RPC connections, or balance queries
+- **Air-Gapped Capable**: Works completely offline
+- **Private Key Control**: Keys never leave your local system
+
+### Graceful Error Handling
+- **User-Friendly Messages**: Invalid mnemonics show helpful errors, not stack traces
+- **Consistent Validation**: Same error handling patterns across all commands
+- **Protective Safeguards**: Multiple confirmation layers for destructive operations
+
+## 🔧 Interactive Modification Commands
+
+### Hybrid Command Interface
+All `modify-*` commands support both **interactive mode** (default) and **direct flag mode** for maximum usability:
+
+#### Interactive Mode (Default)
+When no modification flags are provided, commands enter an interactive menu:
+
+```bash
+wallet-backup modify-wallet --account "MyAccount" --wallet-group "Group1" --wallet "wallet1"
+
+🔧 Interactive Modification Mode
+Current wallet: MyBitcoinWallet
+
+What would you like to modify?
+1. Label (current: MyBitcoinWallet)
+2. Notes (current: (none))
+3. Add additional data
+4. Remove additional data
+5. Add secondary address
+6. Remove secondary address
+7. Clear all additional data (0 entries)
+8. Clear all secondary addresses (0 addresses)
+9. Exit
+
+Choose option (1-9):
+```
+
+#### Direct Flag Mode
+Provide modification flags for confirmed execution with verification step:
+
+```bash
+wallet-backup modify-wallet \
+  --account "MyAccount" \
+  --wallet-group "Group1" \
+  --wallet "wallet1" \
+  --label "New Label" \
+  --add-data "exchange=binance"
+
+📋 Planned Changes:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Label: 'MyBitcoinWallet' → 'New Label'
+  Additional Data 'exchange': (none) → 'binance' (add)
+
+Apply these changes? (Y/n): y
+✓ Changes confirmed. Applying modifications...
+```
+
+### Safety & Verification Features
+- **Direct Flag Verification**: All flag-based modifications show planned changes and require confirmation
+- **Before/After Display**: Clear "old value → new value" format for all changes
+- **Operation Indicators**: Shows whether operations are (add), (update), (remove), or (no change)
+- **Detailed Impact**: Lists all affected entries when clearing data or secondary addresses
+- **Cancellation Option**: Type 'n' or 'no' to cancel changes before application
+
+### Interactive Features
+- **Current Value Display**: Shows existing values for context
+- **Key=Value Input**: Guided input for additional data and secondary addresses
+- **Confirmation Prompts**: Safety confirmations for destructive operations in interactive mode
+- **Numbered Lists**: Easy selection from existing data when removing items
+- **Exit Anytime**: Choose option 9 to exit without saving
+
+### Name/Address Flexibility
+Many commands support `--name|address` pattern for flexible identification:
+
+```bash
+# Find wallet by name
+wallet-backup show-standalone-wallet --name "MyWallet"
+
+# Find same wallet by address
+wallet-backup show-standalone-wallet --address "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
+
+# Modify subwallet by name or address
+wallet-backup modify-subwallet --account "A" --wallet-group "G" --wallet "W" --address-group "AG" --subwallet-name "addr1"
+wallet-backup modify-subwallet --account "A" --wallet-group "G" --wallet "W" --address-group "AG" --address "bc1q..."
+```
+
+## 🔐 Sensitive Information Display
+
+### --include-sensitive Flag
+All show commands protect sensitive data by default. Use `--include-sensitive` to view private keys:
+
+**Default Behavior (Safe)**:
+- Master accounts: Shows mnemonic as "(use --include-sensitive to view)"
+- Wallets/Subwallets: Shows private key as "(use --include-sensitive to view)"
+- All other data (addresses, public keys, labels, notes) always visible
+
+**With --include-sensitive**:
+- Master accounts: Shows full mnemonic phrase and passphrase
+- Wallets/Subwallets: Shows private key in plaintext
+
+## 🏗️ Architecture Highlights
+
+### Clean Command Structure
+- **Hierarchical Navigation**: All commands follow the same 5-level pattern
+- **Consistent Parameters**: Same `--account`, `--wallet-group`, `--wallet` pattern
+- **Flexible Identification**: Support for both name and address-based lookups
+- **Interactive by Default**: User-friendly guided modification with fallback to direct flags
+- **Defensive Operations**: Safety checks prevent accidental data loss
+
+### Database Integrity
+- **Foreign Key Constraints**: Automatic cascading with SQLite `ON DELETE CASCADE`
+- **Referential Integrity**: All relationships properly maintained
+- **Clean Separation**: CLI handles validation, database handles operations
+
 ## 📊 Development Status
 
-**Current Version**: 1.0.0 (100% Core Features Complete)
+**Current Version**: 2.0.0 (Complete 5-Level Hierarchical System)
 
 ### ✅ Completed
-- **CLI Framework**: All 11 commands implemented with comprehensive help
-- **Database Layer**: Enhanced SQLite schema with multi-wallet support
-- **20 Blockchain Handlers**: All major blockchains with native libraries
-- **Cryptographic Implementation**: BIP-32, BIP-39, BIP-44, SLIP-0010 compliant
-- **Multi-Wallet Support**: Wallet groups, selective blockchain derivation
-- **Security Features**: Local-only operation, mnemonic hashing, air-gapped capable
-- **Testing**: Comprehensive test suite with 68/68 tests passing
+- **5-Level Hierarchy**: Master Account → Wallet Group → Base Wallet → Address Group → Subwallet
+- **30+ CLI Commands**: Complete command set including show and modify commands for all levels
+- **Interactive Modification Interface**: Hybrid interactive/direct flag approach for all modify commands
+- **Flexible Identification**: --name|address support where appropriate for easy wallet lookup
+- **Sensitive Data Protection**: --include-sensitive flag system for secure information display
+- **20+ Blockchain Support**: All major cryptocurrencies with native key derivation
+- **Security Architecture**: Mnemonic validation, empty-group-only removal, graceful errors
+- **Database Schema**: Full foreign key relationships with cascading support
+- **Comprehensive Testing**: All hierarchy levels and safety features tested
 
-### 🔄 In Progress
-- Enhanced individual wallet commands with group support
-- `derive-multi` command for bulk address derivation
-- Comprehensive integration testing
-
-### 📋 Planned
-- Hardware wallet integration (Ledger/Trezor)
-- GUI version
-- Mobile app versions
-- Advanced derivation path templates
+### 🔄 Architecture Improvements
+- **Graceful BIP-39 Validation**: User-friendly error messages for invalid mnemonics
+- **Consistent Error Handling**: Same validation patterns across all commands
+- **Clean Database Layer**: Separation of concerns between CLI and database operations
 
 ## 🛠 Contributing
 
@@ -606,5 +721,6 @@ This tool is for educational and personal backup purposes. Always verify generat
 
 - [BIP-32 Specification](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
 - [BIP-39 Word Lists](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
+- [BIP-44 Multi-Account Hierarchy](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)
 - [SLIP-0044 Coin Types](https://github.com/satoshilabs/slips/blob/master/slip-0044.md)
 - [Project Repository](https://github.com/aryanduntley/DeFiKeyManagement)

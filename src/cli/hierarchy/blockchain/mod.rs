@@ -1,3 +1,3 @@
-pub mod add_blockchain;
+pub mod add_wallet;
 
-pub use add_blockchain::AddBlockchainArgs;
+pub use add_wallet::AddWalletArgs;

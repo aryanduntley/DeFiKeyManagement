@@ -48,8 +48,41 @@ pub fn validate_private_key_hex(private_key: &str) -> Result<Vec<u8>> {
     } else {
         private_key
     };
-    
+
     hex::decode(key).context("Invalid hexadecimal private key")
+}
+
+// Simple validation function for remove commands that need mnemonic verification
+pub fn validate_mnemonic_with_account(
+    mnemonic: &str,
+    passphrase: &str,
+    master_account: &crate::database::MasterAccount,
+) -> Result<bool> {
+    use crate::crypto::bip39_utils::{normalize_mnemonic, generate_seed_from_mnemonic};
+
+    // Normalize the mnemonic
+    let normalized_mnemonic = normalize_mnemonic(mnemonic);
+
+    // Validate the mnemonic format - return false for invalid BIP-39 instead of error
+    if validate_mnemonic(&normalized_mnemonic).is_err() {
+        return Ok(false);
+    }
+
+    // Generate seed from provided mnemonic - return false for generation failures
+    let seed = match generate_seed_from_mnemonic(&normalized_mnemonic, Some(passphrase)) {
+        Ok(seed) => seed,
+        Err(_) => return Ok(false),
+    };
+
+    // Compare with stored mnemonic or derive master private key to compare
+    if !master_account.mnemonic.is_empty() {
+        // Direct mnemonic comparison
+        Ok(normalized_mnemonic == master_account.mnemonic)
+    } else {
+        // Compare derived master private key
+        let derived_master_private = hex::encode(&seed[0..32]);
+        Ok(derived_master_private == master_account.master_private_key)
+    }
 }
 
 #[cfg(test)]

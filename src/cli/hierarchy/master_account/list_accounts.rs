@@ -14,7 +14,7 @@ pub fn execute(_args: ListAccountsArgs, db: &Database) -> Result<()> {
 
     if master_accounts.is_empty() {
         println!("\n   No accounts found.");
-        println!("   Create one with: wallet-backup create-account --account-name \"YourAccountName\" --mnemonic \"your mnemonic phrase\"");
+        println!("   Create one with: wallet-backup add-account --name \"YourAccountName\" --mnemonic \"your mnemonic phrase\"");
         return Ok(());
     }
 
@@ -22,7 +22,7 @@ pub fn execute(_args: ListAccountsArgs, db: &Database) -> Result<()> {
 
     // Print header
     println!("   {:<4} {:<25} {:<12} {:<15} {:<12}",
-        "ID", "Account Name", "Groups", "Addresses", "Created");
+        "ID", "Account Name", "Groups", "Wallets", "Created");
     println!("   {}", "─".repeat(70));
 
     // Print each master account
@@ -33,14 +33,14 @@ pub fn execute(_args: ListAccountsArgs, db: &Database) -> Result<()> {
             account.id,
             account.name,
             account.wallet_group_count,
-            account.total_addresses,
+            account.total_wallets,
             created_date
         );
     }
 
     println!("\n💡 Next steps:");
-    println!("   • Create wallet groups: wallet-backup create-wallet-group --account \"<account-name>\" --name \"<group-name>\"");
-    println!("   • Show specific account details: wallet-backup show-hierarchy --account \"<account-name>\"");
+    println!("   • Create wallet groups: wallet-backup add-wallet-group --account \"<account-name>\" --name \"<group-name>\"");
+    println!("   • List wallet groups: wallet-backup list-wallet-groups --account \"<account-name>\"");
 
     Ok(())
 }
