@@ -101,7 +101,7 @@ impl SupportedBlockchain {
             Self::Litecoin => vec![BipStandard::Bip44, BipStandard::Bip49, BipStandard::Bip84],
 
             // Most other blockchains primarily use BIP-44
-            Self::Ethereum | Self::Solana | Self::Stellar | Self::XRP | Self::Cardano |
+            Self::Ethereum | Self::Stellar | Self::Solana | Self::XRP | Self::Cardano |
             Self::Tron | Self::Cronos | Self::Hedera | Self::Algorand | Self::Cosmos |
             Self::BinanceBNB | Self::Polygon | Self::Polkadot | Self::Sui | Self::Optimism |
             Self::IOTA | Self::XDC | Self::TON => vec![BipStandard::Bip44],

@@ -214,24 +214,87 @@ impl SupportedBlockchain {
         }
     }
     
-    pub fn get_default_derivation_path(&self, account: u32, address_index: u32) -> String {
-        let default_bip = self.get_default_bip();
-        self.get_bip_derivation_path(default_bip, account, address_index)
-            .unwrap_or_else(|_| {
-                // Fallback to hardcoded paths for special cases
-                match self {
-                    Self::Solana => format!("m/44'/501'/{}/{}'", account, address_index),
-                    Self::Stellar => format!("m/44'/148'/{}'", account),
-                    Self::Cardano => format!("m/1852'/1815'/{}'/{}/{}", account, 0, address_index),
-                    Self::Hedera => format!("m/44'/3030'/{}'/{}'/{}'", account, 0, address_index),
-                    Self::Algorand => format!("m/44'/283'/{}'/{}'/{}'", account, 0, address_index),
-                    Self::Polkadot => format!("m/44'/354'/{}'/{}'/{}'", account, 0, address_index),
-                    Self::Sui => format!("m/44'/784'/{}'/{}'/{}'", account, 0, address_index),
-                    Self::IOTA => format!("m/44'/4218'/{}'/{}'/{}'", account, 0, address_index),
-                    Self::TON => format!("m/44'/607'/{}'/{}'", account, address_index),
-                    _ => format!("m/44'/0'/{}'/{}/{}", account, 0, address_index),
+    /// Customizes derivation paths for blockchains that follow modified BIP standards
+    pub fn customize_derivation_path(&self, standard_path: String) -> String {
+        match self {
+            Self::Stellar => {
+                // Stellar uses BIP-44 but truncates to 3 levels due to ed25519 hardened-only requirement
+                // Standard: m/44'/148'/account'/change/address_index
+                // Stellar:  m/44'/148'/account'
+
+                // Extract the account index from the standard path and create Stellar-specific path
+                // Expected input: m/44'/148'/0'/0/0
+                // Expected output: m/44'/148'/0'
+                if standard_path.starts_with("m/44'/148'/") {
+                    let parts: Vec<&str> = standard_path.split('/').collect();
+                    if parts.len() >= 4 {
+                        let account_part = parts[3]; // This should be the account index
+                        // Remove trailing "'" if present, then add it back to ensure hardened
+                        let account_num = account_part.trim_end_matches('\'');
+                        return format!("m/44'/148'/{}'" , account_num);
+                    }
                 }
-            })
+
+                // Fallback to original if parsing fails
+                standard_path
+            },
+            Self::Solana => {
+                // Solana uses BIP-44 but truncates to 4 levels
+                // Standard: m/44'/501'/account'/change/address_index
+                // Solana:   m/44'/501'/account'/0'
+
+                // Extract the account index from the standard path and create Solana-specific path
+                // Expected input: m/44'/501'/0'/0/0
+                // Expected output: m/44'/501'/0'/0'
+                if standard_path.starts_with("m/44'/501'/") {
+                    let parts: Vec<&str> = standard_path.split('/').collect();
+                    if parts.len() >= 5 {
+                        let account_part = parts[3]; // This should be the account index
+                        let change_part = parts[4];  // This should be the change index
+                        // Remove trailing "'" if present, then add it back to ensure hardened
+                        let account_num = account_part.trim_end_matches('\'');
+                        let change_num = change_part.trim_end_matches('\'');
+                        return format!("m/44'/501'/{}'/{}'", account_num, change_num);
+                    }
+                }
+
+                // Fallback to original if parsing fails
+                standard_path
+            },
+            _ => standard_path, // No customization needed
+        }
+    }
+
+    pub fn get_default_derivation_path(&self, account: u32, address_index: u32) -> String {
+        // For blockchains that need path customization, apply it directly
+        match self {
+            Self::Stellar => {
+                // Stellar uses 3-level hardened path: m/44'/148'/account'
+                format!("m/44'/148'/{}'" , account)
+            },
+            Self::Solana => {
+                // Solana uses 4-level hardened path: m/44'/501'/account'/0'
+                format!("m/44'/501'/{}'/{}'", account, 0)
+            },
+            _ => {
+                // For other blockchains, use standard BIP derivation
+                let default_bip = self.get_default_bip();
+                self.get_bip_derivation_path(default_bip, account, address_index)
+                    .unwrap_or_else(|_| {
+                        // Fallback to hardcoded paths for blockchains that don't support BIPs
+                        match self {
+                            Self::Cardano => format!("m/1852'/1815'/{}'/{}/{}", account, 0, address_index),
+                            Self::Hedera => format!("m/44'/3030'/{}'/{}'/{}'", account, 0, address_index),
+                            Self::Algorand => format!("m/44'/283'/{}'/{}'/{}'", account, 0, address_index),
+                            Self::Polkadot => format!("m/44'/354'/{}'/{}'/{}'", account, 0, address_index),
+                            Self::Sui => format!("m/44'/784'/{}'/{}'/{}'", account, 0, address_index),
+                            Self::IOTA => format!("m/44'/4218'/{}'/{}'/{}'", account, 0, address_index),
+                            Self::TON => format!("m/44'/607'/{}'/{}'", account, address_index),
+                            _ => format!("m/44'/0'/{}'/{}/{}", account, 0, address_index),
+                        }
+                    })
+            }
+        }
     }
     
     pub fn uses_ed25519(&self) -> bool {

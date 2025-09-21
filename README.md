@@ -14,6 +14,8 @@ Master Account → Wallet Group → Base Wallet → Address Group → Subwallets
 ### Core Capabilities
 - **20+ Native Blockchains**: Bitcoin, Ethereum, Solana, XRP, Stellar, Cardano, TRON, Polygon, Optimism, Cronos, Binance BNB, Cosmos, Algorand, Hedera, Polkadot, Sui, IOTA, TON, XDC, Litecoin
 - **Hierarchical Deterministic (HD) Wallets**: Full BIP-32, BIP-39, BIP-44 compliance with proper key derivation
+- **Auto-Incrementing Derivation**: Each blockchain maintains independent account counters per master account
+- **Organizational Flexibility**: Wallet groups are purely for UI organization - no impact on cryptographic derivation
 - **Enterprise Organization**: Multi-level hierarchy for complex portfolio management
 - **Standalone Wallet Support**: Import individual private keys alongside HD wallets
 - **Cross-Platform**: Single binary for Linux, Windows, macOS
@@ -135,13 +137,12 @@ wallet-backup add-wallet \
   --name "MyBitcoinLegacy" \
   --bip "44"
 
-# Create Ethereum wallet with custom derivation
+# Create Ethereum wallet (account index auto-incremented)
 wallet-backup add-wallet \
   --account "MyMainAccount" \
   --wallet-group "TradingWallets" \
   --blockchain "ethereum" \
-  --name "ETH-Trading" \
-  --account-index 1
+  --name "ETH-Trading"
 ```
 
 #### List Base Wallets
@@ -539,28 +540,55 @@ Example Bitcoin addresses generated:
 
 ## 🌐 Supported Blockchains
 
-| Blockchain | Coin Type | Curve | Derivation Path | Status |
-|------------|-----------|-------|-----------------|--------|
-| Bitcoin | 0 | secp256k1 | m/84'/0'/0'/0/0 (default), m/44'/0'/0'/0/0, m/49'/0'/0'/0/0 | ✅ |
-| Ethereum | 60 | secp256k1 | m/44'/60'/0'/0/0 | ✅ |
-| Solana | 501 | ed25519 | m/44'/501'/0'/0' | ✅ |
-| Stellar (XLM) | 148 | ed25519 | m/44'/148'/0' | ✅ |
-| XRP (Ripple) | 144 | secp256k1 | m/44'/144'/0'/0/0 | ✅ |
-| Cardano (ADA) | 1815 | ed25519 | m/1852'/1815'/0'/0/0 | ✅ |
-| TRON | 195 | secp256k1 | m/44'/195'/0'/0/0 | ✅ |
-| Cronos (CRO) | 394 | secp256k1 | m/44'/394'/0'/0/0 | ✅ |
-| TON | - | ed25519 | Custom | ✅ |
-| Hedera (HBAR) | 3030 | ed25519 | m/44'/3030'/0'/0'/0' | ✅ |
-| Algorand | 283 | ed25519 | m/44'/283'/0'/0'/0' | ✅ |
-| Cosmos | 118 | secp256k1 | m/44'/118'/0'/0/0 | ✅ |
-| Binance BNB | 714 | secp256k1 | m/44'/714'/0'/0/0 | ✅ |
-| Litecoin | 2 | secp256k1 | m/84'/2'/0'/0/0 (default), m/44'/2'/0'/0/0, m/49'/2'/0'/0/0 | ✅ |
-| Polygon | 966 | secp256k1 | m/44'/966'/0'/0/0 | ✅ |
-| Polkadot | 354 | ed25519 | m/44'/354'/0'/0'/0' | ✅ |
-| Sui | 784 | ed25519 | m/44'/784'/0'/0'/0' | ✅ |
-| Optimism | - | secp256k1 | m/44'/60'/0'/0/0 | ✅ |
-| IOTA | 4218 | ed25519 | m/44'/4218'/0'/0'/0' | ✅ |
-| XDC | 550 | secp256k1 | m/44'/550'/0'/0/0 | ✅ |
+| Blockchain | Coin Type | Curve | Derivation Path Pattern* | Status |
+|------------|-----------|-------|-----------------------|--------|
+| Bitcoin | 0 | secp256k1 | m/84'/0'/N'/0/0 (default), m/44'/0'/N'/0/0, m/49'/0'/N'/0/0 | ✅ |
+| Ethereum | 60 | secp256k1 | m/44'/60'/N'/0/0 | ✅ |
+| Solana | 501 | ed25519 | m/44'/501'/N'/0' | ✅ |
+| Stellar (XLM) | 148 | ed25519 | m/44'/148'/N' | ✅ |
+| XRP (Ripple) | 144 | secp256k1 | m/44'/144'/N'/0/0 | ✅ |
+| Cardano (ADA) | 1815 | ed25519 | m/1852'/1815'/N'/0/0 | ✅ |
+| TRON | 195 | secp256k1 | m/44'/195'/N'/0/0 | ✅ |
+| Cronos (CRO) | 394 | secp256k1 | m/44'/394'/N'/0/0 | ✅ |
+| TON | 607 | ed25519 | m/44'/607'/N'/N' | ✅ |
+| Hedera (HBAR) | 3030 | ed25519 | m/44'/3030'/N'/0'/0' | ✅ |
+| Algorand | 283 | ed25519 | m/44'/283'/N'/0'/0' | ✅ |
+| Cosmos | 118 | secp256k1 | m/44'/118'/N'/0/0 | ✅ |
+| Binance BNB | 714 | secp256k1 | m/44'/714'/N'/0/0 | ✅ |
+| Litecoin | 2 | secp256k1 | m/84'/2'/N'/0/0 (default), m/44'/2'/N'/0/0, m/49'/2'/N'/0/0 | ✅ |
+| Polygon | 966 | secp256k1 | m/44'/966'/N'/0/0 | ✅ |
+| Polkadot | 354 | ed25519 | m/44'/354'/N'/0'/0' | ✅ |
+| Sui | 784 | ed25519 | m/44'/784'/N'/0'/0' | ✅ |
+| Optimism | 60 | secp256k1 | m/44'/60'/N'/0/0 | ✅ |
+| IOTA | 4218 | ed25519 | m/44'/4218'/N'/0'/0' | ✅ |
+| XDC | 550 | secp256k1 | m/44'/550'/N'/0/0 | ✅ |
+
+*N = Auto-incremented account index (0, 1, 2, ...) per blockchain per master account.
+**Wallet groups are organizational only - they do not affect derivation paths.**
+
+### 🔄 Auto-Incrementing Derivation Architecture
+
+**CRITICAL CONCEPT**: Derivation paths are completely decoupled from wallet groups!
+
+- **Per-Blockchain Counters**: Each blockchain maintains its own auto-incrementing account index within each master account
+- **Independent of Organization**: Wallet groups are purely for UI/management - they do NOT affect derivation paths
+- **Predictable Paths**: Bitcoin wallets get m/84'/0'/0', m/84'/0'/1', m/84'/0'/2'... regardless of which group they're in
+- **Multi-Blockchain Example**:
+  ```
+  Master Account: "Portfolio2024"
+    ├── Wallet Group: "Personal" (organizational only)
+    │   ├── Bitcoin wallet → m/84'/0'/0'/0/0 (first Bitcoin wallet)
+    │   └── Stellar wallet → m/44'/148'/0' (first Stellar wallet)
+    └── Wallet Group: "Business" (organizational only)
+        ├── Bitcoin wallet → m/84'/0'/1'/0/0 (second Bitcoin wallet)
+        └── Stellar wallet → m/44'/148'/1' (second Stellar wallet)
+  ```
+
+This architecture ensures:
+- ✅ **Consistent derivation** regardless of organizational changes
+- ✅ **BIP compliance** with proper sequential account indexing
+- ✅ **Predictable recovery** using standard derivation patterns
+- ✅ **Flexible organization** without affecting cryptographic security
 
 ## 💾 Database Schema
 

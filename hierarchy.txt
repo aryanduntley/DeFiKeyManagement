@@ -1,19 +1,33 @@
 Account: FamilyAccount (mnemonic → master private m)
-  └── Wallet Group: Dad (internal organization only)
-      ├── Wallet: work (m/0 = child private) [bitcoin]
-      │   ├── Address Group: receiving (internal collection)
-      │   │   └── Subwallet: addr1.1 (m/0/0 = grandchild private)
-      │   └── Address Group: spending (internal collection)
-      │       └── Subwallet: addr1.2 (m/0/1 = grandchild private)
-      └── Wallet: personal (m/1 = child private) [bitcoin]
-          ├── Address Group: savings (internal collection)
-          │   └── Subwallet: addr2.1 (m/1/0 = grandchild private)
-          └── Address Group: checking (internal collection)
-              └── Subwallet: addr2.2 (m/1/1 = grandchild private)
+  ├── Wallet Group: Dad (internal organization only - NO EFFECT on derivation paths)
+  │   ├── Wallet: work_btc [bitcoin] → uses auto-incremented account index: m/84'/0'/0'/0/0
+  │   │   ├── Address Group: receiving (internal collection)
+  │   │   │   └── Subwallet: addr1.1 (m/84'/0'/0'/0/0)
+  │   │   └── Address Group: spending (internal collection)
+  │   │       └── Subwallet: addr1.2 (m/84'/0'/0'/0/1)
+  │   └── Wallet: work_xlm [stellar] → uses auto-incremented account index: m/44'/148'/0'
+  │       └── Address Group: receiving (single address for ed25519)
+  │           └── Subwallet: stellar_addr (m/44'/148'/0')
+  ├── Wallet Group: Mom (internal organization only - NO EFFECT on derivation paths)
+  │   ├── Wallet: savings_btc [bitcoin] → uses auto-incremented account index: m/84'/0'/1'/0/0
+  │   │   └── Address Group: cold_storage
+  │   │       └── Subwallet: addr2.1 (m/84'/0'/1'/0/0)
+  │   └── Wallet: trading_sol [solana] → uses auto-incremented account index: m/44'/501'/0'/0'
+  │       └── Address Group: main (single address for ed25519)
+  │           └── Subwallet: solana_addr (m/44'/501'/0'/0')
+  └── Wallet Group: Kids (internal organization only - NO EFFECT on derivation paths)
+      └── Wallet: allowance_btc [bitcoin] → uses auto-incremented account index: m/84'/0'/2'/0/0
 
-- WalletGroup: Groups child private keys (m/0, m/1, m/2...) - can be any blockchain
-- AddressGroup: Groups grandchild private keys (m/0/0, m/0/1, m/0/2...) - same blockchain as parent wallet
-- AddressGroup belongs to a specific base wallet, not to WalletGroup
+CRITICAL: Derivation paths are COMPLETELY DECOUPLED from wallet groups!
+
+- Each blockchain auto-increments its own account index per master account:
+  * Bitcoin: m/84'/0'/0', m/84'/0'/1', m/84'/0'/2'... (BIP-84)
+  * Stellar: m/44'/148'/0', m/44'/148'/1', m/44'/148'/2'... (3-level hardened)
+  * Solana:  m/44'/501'/0'/0', m/44'/501'/1'/0', m/44'/501'/2'/0'... (4-level hardened)
+
+- WalletGroup: Pure organizational tool - groups wallets for UI/management purposes only
+- AddressGroup: Groups subwallets within a single base wallet - same blockchain as parent
+- Derivation paths depend ONLY on: mnemonic + blockchain type + auto-incremented account index
 
 To re-enable cascading deletion in the future, you would simply:
 1. Remove the CLI validation checks I just added (the subwallet_count > 0 blocks)

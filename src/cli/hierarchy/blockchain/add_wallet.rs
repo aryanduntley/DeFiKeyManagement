@@ -128,6 +128,10 @@ fn process_blockchain(
     wallet_name: &str,
     bip_standard: Option<BipStandard>,
 ) -> Result<i64> {
+    // ALL blockchains should use per-master-account auto-incrementing account indexes
+    // Wallet groups are purely for internal organization and should not affect derivation paths
+    let master_account_id = db.get_master_account_id_from_wallet_group(wallet_group_id)?;
+    let effective_account_index = db.get_next_blockchain_account_index(master_account_id, &blockchain.to_string())?;
     // Get blockchain handler
     let handler = get_blockchain_handler(blockchain)?;
 
@@ -136,15 +140,15 @@ fn process_blockchain(
         // For Bitcoin, use the specialized BIP-aware method
         if *blockchain == SupportedBlockchain::Bitcoin {
             let bitcoin_handler = crate::blockchain::bitcoin::BitcoinHandler::new();
-            bitcoin_handler.derive_with_bip(mnemonic, passphrase, account_index, 0, bip)
+            bitcoin_handler.derive_with_bip(mnemonic, passphrase, effective_account_index, 0, bip)
                 .context("Failed to derive Bitcoin keys with BIP standard")?
         } else {
-            // For other blockchains, use custom derivation path
-            let derivation_path = blockchain.get_bip_derivation_path(bip, account_index, 0)?;
+            // For other blockchains, use default derivation path (includes blockchain-specific customizations)
+            let derivation_path = blockchain.get_default_derivation_path(effective_account_index, 0);
             handler.derive_from_mnemonic(
                 mnemonic,
                 passphrase,
-                account_index,
+                effective_account_index,
                 0, // Use 0 for the base wallet derivation
                 Some(&derivation_path),
             ).context("Failed to derive keys from mnemonic with BIP standard")?
@@ -154,7 +158,7 @@ fn process_blockchain(
         handler.derive_from_mnemonic(
             mnemonic,
             passphrase,
-            account_index,
+            effective_account_index,
             0, // Use 0 for the base wallet derivation
             None, // use default derivation path
         ).context("Failed to derive keys from mnemonic")?

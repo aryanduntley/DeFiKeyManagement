@@ -1233,6 +1233,63 @@ impl Database {
 
         Ok(rows_affected > 0)
     }
+    /// Gets the master account ID from a wallet group ID
+    pub fn get_master_account_id_from_wallet_group(&self, wallet_group_id: i64) -> Result<i64> {
+        let master_account_id = self.conn.query_row(
+            "SELECT master_account_id FROM wallet_groups WHERE id = ?1",
+            [wallet_group_id],
+            |row| Ok(row.get::<_, i64>(0)?)
+        )?;
+        Ok(master_account_id)
+    }
+
+    /// Gets the next available account index for a limited hierarchy blockchain (scoped to a master account)
+    pub fn get_next_blockchain_account_index(&self, master_account_id: i64, blockchain: &str) -> Result<u32> {
+        // Parse derivation paths to find the highest account index used for this blockchain within this master account
+        let next_index: u32 = self.conn.query_row(
+            r#"
+            SELECT COALESCE(MAX(
+                CAST(
+                    CASE
+                        WHEN derivation_path LIKE 'm/%' THEN
+                            -- Extract account index from paths like m/44'/148'/X'
+                            SUBSTR(
+                                derivation_path,
+                                LENGTH('m/44''/') + LENGTH(
+                                    CASE blockchain
+                                        WHEN 'stellar' THEN '148'
+                                        WHEN 'solana' THEN '501'
+                                        ELSE '0'
+                                    END
+                                ) + LENGTH('''/') + 1,
+                                INSTR(
+                                    SUBSTR(derivation_path,
+                                           LENGTH('m/44''/') + LENGTH(
+                                               CASE blockchain
+                                                   WHEN 'stellar' THEN '148'
+                                                   WHEN 'solana' THEN '501'
+                                                   ELSE '0'
+                                               END
+                                           ) + LENGTH('''/') + 1
+                                    ),
+                                    ''''
+                                ) - 1
+                            )
+                        ELSE '0'
+                    END
+                AS INTEGER)
+            ), -1) + 1
+            FROM wallets w
+            JOIN wallet_groups wg ON w.wallet_group_id = wg.id
+            WHERE wg.master_account_id = ?1 AND w.blockchain = ?2 AND w.derivation_path IS NOT NULL
+            "#,
+            params![master_account_id, blockchain],
+            |row| Ok(row.get(0)?)
+        ).unwrap_or(0);
+
+        Ok(next_index)
+    }
+
     /// Search wallets by term, optionally filtered by blockchain
     pub fn search_wallets(&self, term: &str, blockchain: Option<&str>) -> Result<Vec<Wallet>> {
         let (query, params): (String, Vec<String>) = match blockchain {
