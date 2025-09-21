@@ -64,6 +64,7 @@ pub fn execute(args: AddWalletArgs, db: &Database) -> Result<()> {
 
     println!("✓ Blockchain validated: {}", blockchain);
 
+
     // Parse and validate BIP standard if provided
     let bip_standard = if let Some(bip_str) = &args.bip {
         let bip = BipStandard::from_str(bip_str)?;
@@ -77,7 +78,11 @@ pub fn execute(args: AddWalletArgs, db: &Database) -> Result<()> {
         Some(bip)
     } else {
         let default_bip = blockchain.get_default_bip();
-        println!("✓ Using default BIP for {}: {}", blockchain, default_bip);
+        if blockchain == SupportedBlockchain::Cardano {
+            println!("✓ Using CIP-1852 standard for Cardano (Trust Wallet compatible)");
+        } else {
+            println!("✓ Using default BIP for {}: {}", blockchain, default_bip);
+        }
         Some(default_bip)
     };
 
@@ -154,13 +159,15 @@ fn process_blockchain(
             ).context("Failed to derive keys from mnemonic with BIP standard")?
         }
     } else {
-        // Use default derivation
+        // Use default derivation (with role and BIP support for Cardano)
+        let custom_path: Option<String> = None;
+
         handler.derive_from_mnemonic(
             mnemonic,
             passphrase,
             effective_account_index,
             0, // Use 0 for the base wallet derivation
-            None, // use default derivation path
+            custom_path.as_deref(), // use custom path if needed, otherwise default
         ).context("Failed to derive keys from mnemonic")?
     };
 

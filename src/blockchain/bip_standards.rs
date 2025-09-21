@@ -114,6 +114,9 @@ impl SupportedBlockchain {
             // Bitcoin and Litecoin default to Native SegWit (BIP-84) for modern wallets
             Self::Bitcoin | Self::Litecoin => BipStandard::Bip84,
 
+            // Cardano uses CIP-1852 as the default (not BIP-44)
+            Self::Cardano => BipStandard::Bip44, // Note: We use BIP-44 enum but it represents CIP-1852 for Cardano
+
             // All other blockchains use BIP-44
             _ => BipStandard::Bip44,
         }

@@ -12,21 +12,20 @@ impl CardanoHandler {
         Self
     }
 
-    fn generate_base_address(&self, public_key: &[u8]) -> Result<String> {
+    fn generate_base_address(&self, payment_public_key: &[u8], stake_public_key: &[u8]) -> Result<String> {
         // Use official cardano-serialization-lib for base address generation
         // This ensures exact compatibility with Trust Wallet and other standard wallets
 
-        // Create CardanoPublicKey from raw bytes
-        let cardano_pub_key = CardanoPublicKey::from_bytes(public_key)
-            .map_err(|e| anyhow::anyhow!("Invalid public key: {:?}", e))?;
+        // Create CardanoPublicKey from raw bytes for both payment and stake keys
+        let cardano_payment_key = CardanoPublicKey::from_bytes(payment_public_key)
+            .map_err(|e| anyhow::anyhow!("Invalid payment public key: {:?}", e))?;
 
-        // Create payment credential from public key hash
-        let payment_key_hash = cardano_pub_key.hash();
+        let cardano_stake_key = CardanoPublicKey::from_bytes(stake_public_key)
+            .map_err(|e| anyhow::anyhow!("Invalid stake public key: {:?}", e))?;
 
-        // For base address, we need a stake credential
-        // Using the same key hash for stake credential (simplified approach)
-        // This matches how most wallets generate base addresses by default
-        let stake_key_hash = payment_key_hash.clone();
+        // Create payment and stake credentials from their respective public key hashes
+        let payment_key_hash = cardano_payment_key.hash();
+        let stake_key_hash = cardano_stake_key.hash();
 
         // Create credentials
         let payment_cred = Credential::from_keyhash(&payment_key_hash);
@@ -70,28 +69,36 @@ impl BlockchainHandler for CardanoHandler {
         address_index: u32,
         custom_path: Option<&str>,
     ) -> Result<WalletKeys> {
-        let derivation_path = match custom_path {
+        // Derive payment key (role 0)
+        let payment_derivation_path = match custom_path {
             Some(path) => path.to_string(),
-            None => SupportedBlockchain::Cardano.get_default_derivation_path(account, address_index),
+            None => SupportedBlockchain::Cardano.get_derivation_path_with_role(account, address_index, Some(0)),
         };
 
-        // Derive private and public key using Cardano-specific derivation
-        let (private_key_bytes, public_key_bytes) = derive_cardano_key_from_mnemonic(
+        let (payment_private_key, payment_public_key) = derive_cardano_key_from_mnemonic(
             mnemonic,
             passphrase,
-            &derivation_path,
+            &payment_derivation_path,
         )?;
 
-        // Generate Cardano addresses from public key
-        let base_address = self.generate_base_address(&public_key_bytes)?;
-        let enterprise_address = self.generate_enterprise_address(&public_key_bytes)?;
+        // Derive stake key (role 2) for base address generation
+        let stake_derivation_path = SupportedBlockchain::Cardano.get_derivation_path_with_role(account, address_index, Some(2));
+        let (_stake_private_key, stake_public_key) = derive_cardano_key_from_mnemonic(
+            mnemonic,
+            passphrase,
+            &stake_derivation_path,
+        )?;
+
+        // Generate Cardano addresses
+        let base_address = self.generate_base_address(&payment_public_key, &stake_public_key)?;
+        let enterprise_address = self.generate_enterprise_address(&payment_public_key)?;
 
         // Create WalletKeys with base address as primary and enterprise as secondary
         let mut wallet_keys = WalletKeys::new_simple(
-            hex::encode(&private_key_bytes),
-            hex::encode(&public_key_bytes),
+            hex::encode(&payment_private_key),
+            hex::encode(&payment_public_key),
             base_address,
-            derivation_path,
+            payment_derivation_path,
         );
 
         // Add enterprise address as secondary address
@@ -118,8 +125,9 @@ impl BlockchainHandler for CardanoHandler {
         // Derive public key from private key using ed25519
         let public_key_bytes = private_key_to_public_key_ed25519(&private_key_bytes)?;
 
-        // Generate Cardano addresses from public key
-        let base_address = self.generate_base_address(&public_key_bytes)?;
+        // For private key derivation, use the same key for both payment and stake
+        // This is a limitation when starting from a single private key
+        let base_address = self.generate_base_address(&public_key_bytes, &public_key_bytes)?;
         let enterprise_address = self.generate_enterprise_address(&public_key_bytes)?;
 
         // Create WalletKeys with base address as primary and enterprise as secondary

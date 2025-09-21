@@ -266,6 +266,10 @@ impl SupportedBlockchain {
     }
 
     pub fn get_default_derivation_path(&self, account: u32, address_index: u32) -> String {
+        self.get_derivation_path_with_role(account, address_index, None)
+    }
+
+    pub fn get_derivation_path_with_role(&self, account: u32, address_index: u32, role: Option<u32>) -> String {
         // For blockchains that need path customization, apply it directly
         match self {
             Self::Stellar => {
@@ -277,8 +281,9 @@ impl SupportedBlockchain {
                 format!("m/44'/501'/{}'/{}'", account, 0)
             },
             Self::Cardano => {
-                // Cardano uses CIP-1852 standard: m/1852'/1815'/account'/change/address_index
-                format!("m/1852'/1815'/{}'/{}/{}", account, 0, address_index)
+                let cardano_role = role.unwrap_or(0);
+                // CIP-1852 standard: m/1852'/1815'/account'/role/address_index
+                format!("m/1852'/1815'/{}'/{}/{}", account, cardano_role, address_index)
             },
             _ => {
                 // For other blockchains, use standard BIP derivation
@@ -287,7 +292,10 @@ impl SupportedBlockchain {
                     .unwrap_or_else(|_| {
                         // Fallback to hardcoded paths for blockchains that don't support BIPs
                         match self {
-                            Self::Cardano => format!("m/1852'/1815'/{}'/{}/{}", account, 0, address_index),
+                            Self::Cardano => {
+                                let cardano_role = role.unwrap_or(0);
+                                format!("m/1852'/1815'/{}'/{}/{}", account, cardano_role, address_index)
+                            },
                             Self::Hedera => format!("m/44'/3030'/{}'/{}'/{}'", account, 0, address_index),
                             Self::Algorand => format!("m/44'/283'/{}'/{}'/{}'", account, 0, address_index),
                             Self::Polkadot => format!("m/44'/354'/{}'/{}'/{}'", account, 0, address_index),
