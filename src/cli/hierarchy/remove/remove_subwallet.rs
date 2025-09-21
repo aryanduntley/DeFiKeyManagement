@@ -14,8 +14,8 @@ pub struct RemoveSubwalletArgs {
     #[arg(long, help = "Name of the address group")]
     pub address_group: String,
     #[arg(long, help = "Name of the subwallet to remove", conflicts_with = "address")]
-    pub subwallet_name: Option<String>,
-    #[arg(long, help = "Address of the subwallet to remove", conflicts_with = "subwallet_name")]
+    pub subwallet: Option<String>,
+    #[arg(long, help = "Address of the subwallet to remove", conflicts_with = "subwallet")]
     pub address: Option<String>,
     #[arg(long, help = "Mnemonic phrase for verification (required for subwallet removal)")]
     pub mnemonic: String,
@@ -32,14 +32,14 @@ pub fn execute(args: RemoveSubwalletArgs, db: &Database) -> Result<()> {
     println!("Base Wallet: {}", args.wallet);
     println!("Address Group: {}", args.address_group);
 
-    let identifier = if let Some(ref name) = args.subwallet_name {
+    let identifier = if let Some(ref name) = args.subwallet {
         println!("Subwallet Name: {}", name);
         name.clone()
     } else if let Some(ref addr) = args.address {
         println!("Subwallet Address: {}", addr);
         addr.clone()
     } else {
-        println!("❌ Either --subwallet-name or --address must be provided.");
+        println!("❌ Either --subwallet or --address must be provided.");
         return Ok(());
     };
 
@@ -95,7 +95,7 @@ pub fn execute(args: RemoveSubwalletArgs, db: &Database) -> Result<()> {
         .context("Failed to get subwallets")?;
 
     // Find the target subwallet by name or address
-    let target_subwallet = if let Some(_) = args.subwallet_name {
+    let target_subwallet = if let Some(_) = args.subwallet {
         // Find by name
         subwallets.into_iter().find(|w| {
             w.label.as_ref().map_or(false, |label| label == &identifier)
@@ -108,7 +108,7 @@ pub fn execute(args: RemoveSubwalletArgs, db: &Database) -> Result<()> {
     let subwallet = match target_subwallet {
         Some(w) => w,
         None => {
-            if args.subwallet_name.is_some() {
+            if args.subwallet.is_some() {
                 println!("❌ Subwallet with name '{}' not found in address group '{}'.", identifier, args.address_group);
             } else {
                 println!("❌ Subwallet with address '{}' not found in address group '{}'.", identifier, args.address_group);

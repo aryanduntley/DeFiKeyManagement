@@ -5,8 +5,8 @@ use crate::database::Database;
 #[derive(Args)]
 pub struct RemoveStandaloneWalletArgs {
     #[arg(long, help = "Name of the standalone wallet to remove", conflicts_with = "address")]
-    pub wallet_name: Option<String>,
-    #[arg(long, help = "Address of the standalone wallet to remove", conflicts_with = "wallet_name")]
+    pub wallet: Option<String>,
+    #[arg(long, help = "Address of the standalone wallet to remove", conflicts_with = "wallet")]
     pub address: Option<String>,
     #[arg(long, help = "Private key for verification (required for standalone wallet removal)")]
     pub private_key: String,
@@ -17,14 +17,14 @@ pub struct RemoveStandaloneWalletArgs {
 pub fn execute(args: RemoveStandaloneWalletArgs, db: &Database) -> Result<()> {
     println!("🗑️  Removing standalone wallet");
 
-    let identifier = if let Some(ref name) = args.wallet_name {
+    let identifier = if let Some(ref name) = args.wallet {
         println!("Wallet Name: {}", name);
         name.clone()
     } else if let Some(ref addr) = args.address {
         println!("Wallet Address: {}", addr);
         addr.clone()
     } else {
-        println!("❌ Either --wallet-name or --address must be provided.");
+        println!("❌ Either --wallet or --address must be provided.");
         return Ok(());
     };
 
@@ -33,7 +33,7 @@ pub fn execute(args: RemoveStandaloneWalletArgs, db: &Database) -> Result<()> {
         .context("Failed to get standalone wallets")?;
 
     // Find the target standalone wallet by name or address
-    let target_wallet = if let Some(_) = args.wallet_name {
+    let target_wallet = if let Some(_) = args.wallet {
         // Find by name
         standalone_wallets.into_iter().find(|w| {
             w.label.as_ref().map_or(false, |label| label == &identifier)
@@ -46,7 +46,7 @@ pub fn execute(args: RemoveStandaloneWalletArgs, db: &Database) -> Result<()> {
     let wallet = match target_wallet {
         Some(w) => w,
         None => {
-            if args.wallet_name.is_some() {
+            if args.wallet.is_some() {
                 println!("❌ Standalone wallet with name '{}' not found.", identifier);
             } else {
                 println!("❌ Standalone wallet with address '{}' not found.", identifier);

@@ -173,13 +173,13 @@ wallet-backup show-wallet \
 wallet-backup modify-wallet \
   --account "MyMainAccount" \
   --wallet-group "PersonalWallets" \
-  --wallet-name "MyBitcoinWallet"
+  --wallet "MyBitcoinWallet"
 
 # Direct modification with flags
 wallet-backup modify-wallet \
   --account "MyMainAccount" \
   --wallet-group "PersonalWallets" \
-  --wallet-name "MyBitcoinWallet" \
+  --wallet "MyBitcoinWallet" \
   --label "Updated Bitcoin Wallet" \
   --notes "Primary trading wallet" \
   --add-data "exchange=binance" \
@@ -198,7 +198,7 @@ wallet-backup modify-wallet \
 wallet-backup remove-wallet \
   --account "MyMainAccount" \
   --wallet-group "PersonalWallets" \
-  --wallet-name "OldWallet" \
+  --wallet "OldWallet" \
   --mnemonic "your mnemonic phrase"
 ```
 
@@ -308,7 +308,7 @@ wallet-backup modify-subwallet \
   --wallet-group "PersonalWallets" \
   --wallet "MyBitcoinWallet" \
   --address-group "receiving" \
-  --subwallet-name "addr1"
+  --subwallet "addr1"
 
 # Direct modification with flags
 wallet-backup modify-subwallet \
@@ -316,7 +316,7 @@ wallet-backup modify-subwallet \
   --wallet-group "PersonalWallets" \
   --wallet "MyBitcoinWallet" \
   --address-group "receiving" \
-  --subwallet-name "addr1" \
+  --subwallet "addr1" \
   --label "Primary Receiving Address" \
   --notes "Used for customer payments" \
   --add-data "purpose=payments"
@@ -338,7 +338,7 @@ wallet-backup remove-subwallet \
   --wallet-group "PersonalWallets" \
   --wallet "MyBitcoinWallet" \
   --address-group "receiving" \
-  --subwallet-name "addr1" \
+  --subwallet "addr1" \
   --mnemonic "your mnemonic phrase"
 ```
 
@@ -391,7 +391,7 @@ wallet-backup modify-standalone-wallet \
 #### Remove Standalone Wallet
 ```bash
 wallet-backup remove-standalone-wallet \
-  --wallet-name "ImportedETH" \
+  --wallet "ImportedETH" \
   --private-key "your-private-key-here"
 ```
 
@@ -710,7 +710,7 @@ wallet-backup show-standalone-wallet --name "MyWallet"
 wallet-backup show-standalone-wallet --address "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
 
 # Modify subwallet by name or address
-wallet-backup modify-subwallet --account "A" --wallet-group "G" --wallet "W" --address-group "AG" --subwallet-name "addr1"
+wallet-backup modify-subwallet --account "A" --wallet-group "G" --wallet "W" --address-group "AG" --subwallet "addr1"
 wallet-backup modify-subwallet --account "A" --wallet-group "G" --wallet "W" --address-group "AG" --address "bc1q..."
 ```
 

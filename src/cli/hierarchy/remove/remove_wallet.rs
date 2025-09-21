@@ -10,8 +10,8 @@ pub struct RemoveWalletArgs {
     #[arg(long, help = "Name of the wallet group")]
     pub wallet_group: String,
     #[arg(long, help = "Name of the wallet to remove", conflicts_with = "address")]
-    pub wallet_name: Option<String>,
-    #[arg(long, help = "Address of the wallet to remove", conflicts_with = "wallet_name")]
+    pub wallet: Option<String>,
+    #[arg(long, help = "Address of the wallet to remove", conflicts_with = "wallet")]
     pub address: Option<String>,
     #[arg(long, help = "Mnemonic phrase for verification (required for wallet removal)")]
     pub mnemonic: String,
@@ -26,14 +26,14 @@ pub fn execute(args: RemoveWalletArgs, db: &Database) -> Result<()> {
     println!("Account: {}", args.account);
     println!("Wallet Group: {}", args.wallet_group);
 
-    let identifier = if let Some(ref name) = args.wallet_name {
+    let identifier = if let Some(ref name) = args.wallet {
         println!("Wallet Name: {}", name);
         name.clone()
     } else if let Some(ref addr) = args.address {
         println!("Wallet Address: {}", addr);
         addr.clone()
     } else {
-        println!("❌ Either --wallet-name or --address must be provided.");
+        println!("❌ Either --wallet or --address must be provided.");
         return Ok(());
     };
 
@@ -73,7 +73,7 @@ pub fn execute(args: RemoveWalletArgs, db: &Database) -> Result<()> {
         .context("Failed to get wallets")?;
 
     // Find the target wallet by name or address
-    let target_wallet = if let Some(_) = args.wallet_name {
+    let target_wallet = if let Some(_) = args.wallet {
         // Find by name
         wallets.into_iter().find(|w| {
             w.label.as_ref().map_or(false, |label| label == &identifier)
@@ -86,7 +86,7 @@ pub fn execute(args: RemoveWalletArgs, db: &Database) -> Result<()> {
     let wallet = match target_wallet {
         Some(w) => w,
         None => {
-            if args.wallet_name.is_some() {
+            if args.wallet.is_some() {
                 println!("❌ Wallet with name '{}' not found in wallet group '{}'.", identifier, args.wallet_group);
             } else {
                 println!("❌ Wallet with address '{}' not found in wallet group '{}'.", identifier, args.wallet_group);
