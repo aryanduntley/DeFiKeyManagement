@@ -1,6 +1,7 @@
 use anyhow::{Result, Context};
 use clap::Args;
 use crate::database::Database;
+use crate::blockchain::stellar::StellarHandler;
 
 #[derive(Args)]
 pub struct ShowWalletArgs {
@@ -160,7 +161,25 @@ pub fn execute(args: ShowWalletArgs, db: &Database) -> Result<()> {
     if args.include_sensitive {
         println!("\n🔒 Sensitive Information");
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        println!("   🔑 Private Key: {}", wallet.private_key);
+
+        // For Stellar wallets, show both hex and Stellar secret formats
+        if wallet.blockchain == "stellar" {
+            println!("   🔑 Private Key (hex): {}", wallet.private_key);
+
+            // Convert to Stellar secret format
+            let stellar_handler = StellarHandler::new();
+            match stellar_handler.hex_private_key_to_stellar_secret(&wallet.private_key) {
+                Ok(stellar_secret) => {
+                    println!("   🌟 Stellar Secret Key: {}", stellar_secret);
+                    println!("   ℹ️  Note: Both formats represent the same private key");
+                }
+                Err(e) => {
+                    println!("   🌟 Stellar Secret Key: (conversion error: {})", e);
+                }
+            }
+        } else {
+            println!("   🔑 Private Key: {}", wallet.private_key);
+        }
     } else {
         println!("\n🔒 Sensitive Information");
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
