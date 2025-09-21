@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use crate::database::Database;
+use crate::blockchain::SupportedBlockchain;
 
 #[derive(Args)]
 pub struct AddAddressGroupArgs {
@@ -57,6 +58,24 @@ pub fn execute(args: AddAddressGroupArgs, db: &Database) -> Result<()> {
     };
 
     println!("✓ Base wallet found (ID: {}, Blockchain: {})", base_wallet.id.unwrap_or(-1), base_wallet.blockchain);
+
+    // Check if the blockchain supports address groups
+    let blockchain = SupportedBlockchain::from_str(&base_wallet.blockchain)?;
+    if !blockchain.supports_address_groups() {
+        println!("\n❌ Address groups are not supported for {} blockchain.", base_wallet.blockchain);
+        println!("   {} uses derivation path that stops at the wallet level.", blockchain);
+        match blockchain {
+            SupportedBlockchain::Stellar => {
+                println!("   Stellar uses: m/44'/148'/0' (3 levels only)");
+                println!("   Maximum hierarchy: Account → Wallet Group → Base Wallet");
+            }
+            _ => {
+                println!("   This blockchain has a limited hierarchy structure.");
+            }
+        }
+        println!("\n💡 Alternative: Create additional base wallets instead of address groups");
+        return Ok(());
+    }
 
     // Check if address group with this name already exists for this wallet
     let existing_groups = db.list_address_groups_for_wallet(base_wallet.id.unwrap())?;

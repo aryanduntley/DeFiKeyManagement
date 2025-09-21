@@ -86,6 +86,32 @@ pub fn execute(args: AddSubwalletArgs, db: &Database) -> Result<()> {
 
     println!("✓ Blockchain validated: {}", blockchain);
 
+    // Check if the blockchain supports subwallets
+    if !blockchain.supports_subwallets() {
+        println!("\n❌ Subwallets are not supported for {} blockchain.", base_wallet.blockchain);
+        println!("   {} uses a limited derivation path structure.", blockchain);
+        match blockchain {
+            SupportedBlockchain::Stellar => {
+                println!("   Stellar uses: m/44'/148'/0' (3 levels only)");
+                println!("   Maximum hierarchy: Account → Wallet Group → Base Wallet");
+            }
+            SupportedBlockchain::Solana => {
+                println!("   Solana uses: m/44'/501'/0'/0' (4 levels only)");
+                println!("   Maximum hierarchy: Account → Wallet Group → Base Wallet → Address Group");
+            }
+            _ => {
+                println!("   This blockchain has a limited hierarchy structure.");
+            }
+        }
+        println!("\n💡 Alternative approaches:");
+        if blockchain.supports_address_groups() {
+            println!("   • Create additional address groups within the base wallet");
+        } else {
+            println!("   • Create additional base wallets within the wallet group");
+        }
+        return Ok(());
+    }
+
     // Determine address index (auto-increment if not provided)
     let address_index = if let Some(idx) = args.address_index {
         idx

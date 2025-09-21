@@ -90,6 +90,28 @@ impl std::fmt::Display for SupportedBlockchain {
 }
 
 impl SupportedBlockchain {
+    /// Returns the maximum hierarchy level supported by this blockchain
+    /// Level 3: Account/Wallet Group/Base Wallet only (Stellar)
+    /// Level 4: Account/Wallet Group/Base Wallet/Address Group only (Solana)
+    /// Level 5: Full hierarchy including subwallets (most blockchains)
+    pub fn max_hierarchy_level(&self) -> u8 {
+        match self {
+            Self::Stellar => 3,  // m/44'/148'/0' - No Address Groups or Subwallets
+            Self::Solana => 4,   // m/44'/501'/0'/0' - No Subwallets
+            _ => 5,              // m/44'/xxx'/0'/0/0 - Full hierarchy
+        }
+    }
+
+    /// Returns true if this blockchain supports Address Groups (level 4+)
+    pub fn supports_address_groups(&self) -> bool {
+        self.max_hierarchy_level() >= 4
+    }
+
+    /// Returns true if this blockchain supports Subwallets (level 5)
+    pub fn supports_subwallets(&self) -> bool {
+        self.max_hierarchy_level() >= 5
+    }
+
     pub fn from_str(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {
             "bitcoin" | "btc" => Ok(Self::Bitcoin),
