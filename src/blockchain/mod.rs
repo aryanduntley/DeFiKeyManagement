@@ -5,6 +5,7 @@ pub mod ethereum;
 pub mod solana;
 pub mod stellar;
 pub mod common;
+pub mod bip_standards;
 
 // Phase 1 blockchain handlers
 pub mod xrp;
@@ -35,8 +36,9 @@ pub mod ton;
 pub mod xdc;
 
 pub use common::*;
+pub use bip_standards::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SupportedBlockchain {
     Bitcoin,
     Ethereum,
@@ -191,28 +193,23 @@ impl SupportedBlockchain {
     }
     
     pub fn get_default_derivation_path(&self, account: u32, address_index: u32) -> String {
-        match self {
-            Self::Bitcoin => format!("m/44'/0'/{}'/{}/{}", account, 0, address_index),
-            Self::Ethereum => format!("m/44'/60'/{}'/{}/{}", account, 0, address_index),
-            Self::Solana => format!("m/44'/501'/{}/{}'", account, address_index),
-            Self::Stellar => format!("m/44'/148'/{}'", account),
-            Self::XRP => format!("m/44'/144'/{}'/{}/{}", account, 0, address_index),
-            Self::Cardano => format!("m/1852'/1815'/{}'/{}/{}", account, 0, address_index),
-            Self::Tron => format!("m/44'/195'/{}'/{}/{}", account, 0, address_index),
-            Self::Cronos => format!("m/44'/394'/{}'/{}/{}", account, 0, address_index),
-            Self::Hedera => format!("m/44'/3030'/{}'/{}'/{}'", account, 0, address_index),
-            Self::Algorand => format!("m/44'/283'/{}'/{}'/{}'", account, 0, address_index),
-            Self::Cosmos => format!("m/44'/118'/{}'/{}/{}", account, 0, address_index),
-            Self::BinanceBNB => format!("m/44'/714'/{}'/{}/{}", account, 0, address_index),
-            Self::Litecoin => format!("m/44'/2'/{}'/{}/{}", account, 0, address_index),
-            Self::Polygon => format!("m/44'/966'/{}'/{}/{}", account, 0, address_index),
-            Self::Polkadot => format!("m/44'/354'/{}'/{}'/{}'", account, 0, address_index),
-            Self::Sui => format!("m/44'/784'/{}'/{}'/{}'", account, 0, address_index),
-            Self::Optimism => format!("m/44'/60'/{}'/{}/{}", account, 0, address_index),
-            Self::IOTA => format!("m/44'/4218'/{}'/{}'/{}'", account, 0, address_index),
-            Self::XDC => format!("m/44'/550'/{}'/{}/{}", account, 0, address_index),
-            Self::TON => format!("m/44'/607'/{}'/{}'", account, address_index), // Custom
-        }
+        let default_bip = self.get_default_bip();
+        self.get_bip_derivation_path(default_bip, account, address_index)
+            .unwrap_or_else(|_| {
+                // Fallback to hardcoded paths for special cases
+                match self {
+                    Self::Solana => format!("m/44'/501'/{}/{}'", account, address_index),
+                    Self::Stellar => format!("m/44'/148'/{}'", account),
+                    Self::Cardano => format!("m/1852'/1815'/{}'/{}/{}", account, 0, address_index),
+                    Self::Hedera => format!("m/44'/3030'/{}'/{}'/{}'", account, 0, address_index),
+                    Self::Algorand => format!("m/44'/283'/{}'/{}'/{}'", account, 0, address_index),
+                    Self::Polkadot => format!("m/44'/354'/{}'/{}'/{}'", account, 0, address_index),
+                    Self::Sui => format!("m/44'/784'/{}'/{}'/{}'", account, 0, address_index),
+                    Self::IOTA => format!("m/44'/4218'/{}'/{}'/{}'", account, 0, address_index),
+                    Self::TON => format!("m/44'/607'/{}'/{}'", account, address_index),
+                    _ => format!("m/44'/0'/{}'/{}/{}", account, 0, address_index),
+                }
+            })
     }
     
     pub fn uses_ed25519(&self) -> bool {

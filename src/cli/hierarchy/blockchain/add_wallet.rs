@@ -3,7 +3,7 @@ use clap::Args;
 use chrono::Utc;
 
 use crate::database::{Database, Wallet};
-use crate::blockchain::{SupportedBlockchain, get_blockchain_handler};
+use crate::blockchain::{SupportedBlockchain, get_blockchain_handler, BipStandard};
 
 #[derive(Args)]
 pub struct AddWalletArgs {
@@ -19,6 +19,8 @@ pub struct AddWalletArgs {
     pub account_index: Option<u32>,
     #[arg(long, help = "Starting address index (default: 0)")]
     pub address_index: Option<u32>,
+    #[arg(long, help = "BIP standard to use (44, 49, 84). If not specified, uses blockchain default")]
+    pub bip: Option<String>,
 }
 
 pub fn execute(args: AddWalletArgs, db: &Database) -> Result<()> {
@@ -62,6 +64,23 @@ pub fn execute(args: AddWalletArgs, db: &Database) -> Result<()> {
 
     println!("✓ Blockchain validated: {}", blockchain);
 
+    // Parse and validate BIP standard if provided
+    let bip_standard = if let Some(bip_str) = &args.bip {
+        let bip = BipStandard::from_str(bip_str)?;
+        if !blockchain.supports_bip(bip) {
+            println!("❌ {} does not support {}", blockchain, bip);
+            println!("   Supported BIPs for {}: {:?}", blockchain,
+                blockchain.get_supported_bips().iter().map(|b| b.to_string()).collect::<Vec<_>>());
+            return Ok(());
+        }
+        println!("✓ BIP standard validated: {}", bip);
+        Some(bip)
+    } else {
+        let default_bip = blockchain.get_default_bip();
+        println!("✓ Using default BIP for {}: {}", blockchain, default_bip);
+        Some(default_bip)
+    };
+
     // Use the wallet group's account index or provided account index
     let account_index = args.account_index.unwrap_or(wallet_group.account_index);
     let address_index = args.address_index.unwrap_or(0);
@@ -78,6 +97,7 @@ pub fn execute(args: AddWalletArgs, db: &Database) -> Result<()> {
         account_index,
         address_index,
         &args.name,
+        bip_standard,
     ) {
         Ok(wallet_id) => {
             println!("✓ Success (Wallet ID: {})", wallet_id);
@@ -106,19 +126,39 @@ fn process_blockchain(
     account_index: u32,
     address_index: u32,
     wallet_name: &str,
+    bip_standard: Option<BipStandard>,
 ) -> Result<i64> {
     // Get blockchain handler
     let handler = get_blockchain_handler(blockchain)?;
 
-    // For base wallets, we derive child private keys (m/account_index)
-    // The address_index is not used for base wallets, only for subwallets
-    let wallet_keys = handler.derive_from_mnemonic(
-        mnemonic,
-        passphrase,
-        account_index,
-        0, // Use 0 for the base wallet derivation
-        None, // use default derivation path
-    ).context("Failed to derive keys from mnemonic")?;
+    // Derive wallet keys with BIP standard if specified
+    let wallet_keys = if let Some(bip) = bip_standard {
+        // For Bitcoin, use the specialized BIP-aware method
+        if *blockchain == SupportedBlockchain::Bitcoin {
+            let bitcoin_handler = crate::blockchain::bitcoin::BitcoinHandler::new();
+            bitcoin_handler.derive_with_bip(mnemonic, passphrase, account_index, 0, bip)
+                .context("Failed to derive Bitcoin keys with BIP standard")?
+        } else {
+            // For other blockchains, use custom derivation path
+            let derivation_path = blockchain.get_bip_derivation_path(bip, account_index, 0)?;
+            handler.derive_from_mnemonic(
+                mnemonic,
+                passphrase,
+                account_index,
+                0, // Use 0 for the base wallet derivation
+                Some(&derivation_path),
+            ).context("Failed to derive keys from mnemonic with BIP standard")?
+        }
+    } else {
+        // Use default derivation
+        handler.derive_from_mnemonic(
+            mnemonic,
+            passphrase,
+            account_index,
+            0, // Use 0 for the base wallet derivation
+            None, // use default derivation path
+        ).context("Failed to derive keys from mnemonic")?
+    };
 
     // Create BASE WALLET record (address_group_id = None)
     let wallet = Wallet {

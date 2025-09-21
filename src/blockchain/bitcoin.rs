@@ -1,5 +1,5 @@
 use anyhow::{Result, Context};
-use crate::blockchain::{BlockchainHandler, WalletKeys, SupportedBlockchain};
+use crate::blockchain::{BlockchainHandler, WalletKeys, SupportedBlockchain, BipStandard};
 use crate::crypto::bip32::{derive_secp256k1_key_from_mnemonic, private_key_to_public_key_secp256k1};
 use bitcoin::secp256k1::{Secp256k1, SecretKey};
 use bitcoin::address::Address;
@@ -97,19 +97,72 @@ impl BlockchainHandler for BitcoinHandler {
 
 impl BitcoinHandler {
     fn public_key_to_address(&self, public_key_bytes: &[u8]) -> Result<String> {
+        // Default to BIP-84 (Native SegWit) for backwards compatibility
+        self.public_key_to_address_with_bip(public_key_bytes, BipStandard::Bip84)
+    }
+
+    /// Generate Bitcoin address based on BIP standard
+    pub fn public_key_to_address_with_bip(&self, public_key_bytes: &[u8], bip: BipStandard) -> Result<String> {
+        match bip {
+            BipStandard::Bip44 => self.public_key_to_legacy_address(public_key_bytes),
+            BipStandard::Bip49 => self.public_key_to_nested_segwit_address(public_key_bytes),
+            BipStandard::Bip84 => self.public_key_to_native_segwit_address(public_key_bytes),
+            _ => Err(anyhow::anyhow!("Bitcoin does not support {} for address generation", bip)),
+        }
+    }
+
+    /// Generate Native SegWit address (starts with bc1) - BIP-84
+    fn public_key_to_native_segwit_address(&self, public_key_bytes: &[u8]) -> Result<String> {
         // Parse the compressed secp256k1 public key
         let secp_pubkey = bitcoin::secp256k1::PublicKey::from_slice(public_key_bytes)
             .context("Invalid secp256k1 public key format")?;
-        
+
         // Convert to bitcoin::PublicKey first, then to CompressedPublicKey
         let public_key = PublicKey::new(secp_pubkey);
         let compressed_pubkey = CompressedPublicKey::try_from(public_key)
             .context("Failed to create compressed public key")?;
-        
-        // Create P2WPKH (Native SegWit) address - most common modern format
+
+        // Create P2WPKH (Native SegWit) address
         let address = Address::p2wpkh(&compressed_pubkey, self.network);
-        
+
         Ok(address.to_string())
+    }
+
+    /// Derive wallet with specific BIP standard
+    pub fn derive_with_bip(
+        &self,
+        mnemonic: &str,
+        passphrase: Option<&str>,
+        account: u32,
+        address_index: u32,
+        bip: BipStandard,
+    ) -> Result<WalletKeys> {
+        let blockchain = SupportedBlockchain::Bitcoin;
+
+        // Validate that Bitcoin supports this BIP
+        if !blockchain.supports_bip(bip) {
+            return Err(anyhow::anyhow!("Bitcoin does not support {}", bip));
+        }
+
+        // Get derivation path for the specified BIP
+        let derivation_path = blockchain.get_bip_derivation_path(bip, account, address_index)?;
+
+        // Derive private and public key using BIP-32
+        let (private_key_bytes, public_key_bytes) = derive_secp256k1_key_from_mnemonic(
+            mnemonic,
+            passphrase,
+            &derivation_path,
+        )?;
+
+        // Generate Bitcoin address based on BIP standard
+        let address = self.public_key_to_address_with_bip(&public_key_bytes, bip)?;
+
+        Ok(WalletKeys::new_simple(
+            hex::encode(&private_key_bytes),
+            hex::encode(&public_key_bytes),
+            address,
+            derivation_path,
+        ))
     }
     
     /// Generate legacy P2PKH address (starts with 1)

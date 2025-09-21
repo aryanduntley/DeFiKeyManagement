@@ -120,12 +120,20 @@ wallet-backup remove-wallet-group \
 
 #### Add Base Wallet
 ```bash
-# Create Bitcoin wallet
+# Create Bitcoin wallet (uses BIP-84 Native SegWit by default)
 wallet-backup add-wallet \
   --account "MyMainAccount" \
   --wallet-group "PersonalWallets" \
   --blockchain "bitcoin" \
   --name "MyBitcoinWallet"
+
+# Create Bitcoin wallet with specific BIP standard
+wallet-backup add-wallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --blockchain "bitcoin" \
+  --name "MyBitcoinLegacy" \
+  --bip "44"
 
 # Create Ethereum wallet with custom derivation
 wallet-backup add-wallet \
@@ -476,11 +484,64 @@ wallet-backup add-subwallet \
   --name "compound"
 ```
 
+## 🔐 BIP Standards Support
+
+The tool supports multiple BIP (Bitcoin Improvement Proposal) standards for hierarchical deterministic wallet generation:
+
+### Supported BIP Standards
+
+| BIP Standard | Purpose | Description | Address Format (Bitcoin) | Supported Blockchains |
+|--------------|---------|-------------|---------------------------|----------------------|
+| **BIP-44** | 44' | Multi-Account Hierarchy (Legacy) | Starts with "1" | Bitcoin, Litecoin, Ethereum, and all others |
+| **BIP-49** | 49' | P2SH-wrapped SegWit | Starts with "3" | Bitcoin, Litecoin |
+| **BIP-84** | 84' | Native SegWit (Default for Bitcoin/Litecoin) | Starts with "bc1" | Bitcoin, Litecoin |
+
+### Using BIP Standards
+
+```bash
+# Bitcoin with Native SegWit (BIP-84, default)
+wallet-backup add-wallet --account "MyAccount" --wallet-group "Group1" --blockchain "bitcoin" --name "ModernBTC"
+
+# Bitcoin with Legacy addresses (BIP-44)
+wallet-backup add-wallet --account "MyAccount" --wallet-group "Group1" --blockchain "bitcoin" --name "LegacyBTC" --bip "44"
+
+# Bitcoin with P2SH-wrapped SegWit (BIP-49)
+wallet-backup add-wallet --account "MyAccount" --wallet-group "Group1" --blockchain "bitcoin" --name "WrappedBTC" --bip "49"
+
+# Ethereum (only supports BIP-44)
+wallet-backup add-wallet --account "MyAccount" --wallet-group "Group1" --blockchain "ethereum" --name "MyETH"
+```
+
+### BIP Validation
+
+The tool automatically validates that the specified BIP standard is supported by the blockchain:
+
+```bash
+# This will fail with a helpful error message
+wallet-backup add-wallet --account "MyAccount" --wallet-group "Group1" --blockchain "ethereum" --name "MyETH" --bip "84"
+
+# Output: ❌ ethereum does not support BIP-84
+#         Supported BIPs for ethereum: ["BIP-44"]
+```
+
+### Trust Wallet Compatibility
+
+**Bitcoin addresses generated with this tool now match Trust Wallet and other modern Bitcoin wallets!**
+
+- **Default**: Uses BIP-84 (Native SegWit) for Bitcoin, generating addresses that start with `bc1`
+- **Compatible**: Addresses match Trust Wallet, iancoleman.github.io/bip39, and other standard wallets
+- **Multiple Standards**: Support for BIP-44 (Legacy), BIP-49 (P2SH-wrapped), and BIP-84 (Native SegWit)
+
+Example Bitcoin addresses generated:
+- **BIP-84 (Default)**: `bc1qku0qh0mc00y8tk0n65x2tqw4trlspak0fnjmfz` - Native SegWit (starts with "bc1")
+- **BIP-44**: Legacy addresses (start with "1")
+- **BIP-49**: P2SH-wrapped SegWit addresses (start with "3")
+
 ## 🌐 Supported Blockchains
 
 | Blockchain | Coin Type | Curve | Derivation Path | Status |
 |------------|-----------|-------|-----------------|--------|
-| Bitcoin | 0 | secp256k1 | m/44'/0'/0'/0/0 | ✅ |
+| Bitcoin | 0 | secp256k1 | m/84'/0'/0'/0/0 (default), m/44'/0'/0'/0/0, m/49'/0'/0'/0/0 | ✅ |
 | Ethereum | 60 | secp256k1 | m/44'/60'/0'/0/0 | ✅ |
 | Solana | 501 | ed25519 | m/44'/501'/0'/0' | ✅ |
 | Stellar (XLM) | 148 | ed25519 | m/44'/148'/0' | ✅ |
@@ -493,7 +554,7 @@ wallet-backup add-subwallet \
 | Algorand | 283 | ed25519 | m/44'/283'/0'/0'/0' | ✅ |
 | Cosmos | 118 | secp256k1 | m/44'/118'/0'/0/0 | ✅ |
 | Binance BNB | 714 | secp256k1 | m/44'/714'/0'/0/0 | ✅ |
-| Litecoin | 2 | secp256k1 | m/44'/2'/0'/0/0 | ✅ |
+| Litecoin | 2 | secp256k1 | m/84'/2'/0'/0/0 (default), m/44'/2'/0'/0/0, m/49'/2'/0'/0/0 | ✅ |
 | Polygon | 966 | secp256k1 | m/44'/966'/0'/0/0 | ✅ |
 | Polkadot | 354 | ed25519 | m/44'/354'/0'/0'/0' | ✅ |
 | Sui | 784 | ed25519 | m/44'/784'/0'/0'/0' | ✅ |
