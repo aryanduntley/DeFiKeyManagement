@@ -3,7 +3,7 @@ use anyhow::{Result, Context, bail};
 use chrono::{DateTime, Utc, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use sha2::{Sha256, Digest};
+use sha2::Digest;
 
 // ========== 4-LEVEL HIERARCHICAL STRUCTURES ==========
 

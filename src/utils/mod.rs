@@ -1,4 +1,4 @@
-use anyhow::{Result, Context};
+use anyhow::Result;
 use std::io::{self, Write};
 
 pub fn confirm_action(message: &str) -> Result<bool> {

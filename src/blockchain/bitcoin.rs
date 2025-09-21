@@ -1,7 +1,6 @@
 use anyhow::{Result, Context};
 use crate::blockchain::{BlockchainHandler, WalletKeys, SupportedBlockchain, BipStandard};
 use crate::crypto::bip32::{derive_secp256k1_key_from_mnemonic, private_key_to_public_key_secp256k1};
-use bitcoin::secp256k1::{Secp256k1, SecretKey};
 use bitcoin::address::Address;
 use bitcoin::key::{PublicKey, CompressedPublicKey};
 use bitcoin::Network;

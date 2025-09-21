@@ -1,7 +1,7 @@
 use anyhow::{Result, Context};
 use crate::blockchain::{BlockchainHandler, WalletKeys};
 use crate::crypto::bip32::{derive_secp256k1_key_from_mnemonic, private_key_to_public_key_secp256k1};
-use cosmrs::{AccountId, crypto::{PublicKey as CosmosPublicKey, secp256k1::{SigningKey as CosmosSigningKey, VerifyingKey as CosmosVerifyingKey}}};
+use cosmrs::{AccountId, crypto::{PublicKey as CosmosPublicKey, secp256k1::VerifyingKey as CosmosVerifyingKey}};
 use std::str::FromStr;
 
 pub struct CosmosHandler;

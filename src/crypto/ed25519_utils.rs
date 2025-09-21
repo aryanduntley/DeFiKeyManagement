@@ -1,5 +1,5 @@
 use anyhow::{Result, Context};
-use ed25519_dalek::{SigningKey, VerifyingKey};
+use ed25519_dalek::SigningKey;
 use bip39::Mnemonic;
 use std::str::FromStr;
 use sha2::{Sha512, Digest};

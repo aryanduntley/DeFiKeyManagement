@@ -1,11 +1,9 @@
 use anyhow::{Result, Context};
 use crate::blockchain::{BlockchainHandler, WalletKeys, SupportedBlockchain};
 use crate::crypto::bip32::{derive_secp256k1_key_from_mnemonic, private_key_to_public_key_secp256k1};
-use litcoin::secp256k1::{Secp256k1, SecretKey};
-use litcoin::{Address, Network, PublicKey};
-use std::str::FromStr;
-use sha2::{Sha256, Digest};
-use ripemd::{Ripemd160, Digest as RipemdDigest};
+use litcoin::{Network, PublicKey};
+use sha2::Digest;
+use ripemd::Digest as RipemdDigest;
 
 pub struct LitecoinHandler {
     network: Network,

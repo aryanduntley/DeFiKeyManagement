@@ -2,7 +2,7 @@ use anyhow::{Result, Context};
 use crate::blockchain::{BlockchainHandler, WalletKeys};
 use crate::crypto::ed25519_utils::{derive_ed25519_key_from_mnemonic, private_key_to_public_key_ed25519};
 use crate::crypto::bip32::{derive_secp256k1_key_from_mnemonic, private_key_to_public_key_secp256k1};
-use hiero_sdk::{PrivateKey as HederaPrivateKey, PublicKey as HederaPublicKey, AccountId as HederaAccountId, Client};
+use hiero_sdk::{PublicKey as HederaPublicKey, AccountId as HederaAccountId};
 use std::collections::HashMap;
 
 pub struct HederaHandler;

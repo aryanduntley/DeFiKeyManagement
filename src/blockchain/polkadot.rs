@@ -2,7 +2,6 @@ use anyhow::{Result, Context};
 use crate::blockchain::{BlockchainHandler, WalletKeys};
 use crate::crypto::ed25519_utils::{derive_ed25519_key_from_mnemonic, private_key_to_public_key_ed25519};
 use blake2::{Blake2b512, Digest};
-use ss58_registry::Ss58AddressFormat;
 
 pub struct PolkadotHandler;
 

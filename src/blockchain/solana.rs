@@ -2,7 +2,7 @@ use anyhow::{Result, Context};
 use crate::blockchain::{BlockchainHandler, WalletKeys, SupportedBlockchain};
 use crate::crypto::ed25519_utils::{derive_ed25519_key_from_mnemonic, private_key_to_public_key_ed25519};
 use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::{Keypair, Signer};
+use solana_sdk::signature::Keypair;
 use std::str::FromStr;
 
 pub struct SolanaHandler;

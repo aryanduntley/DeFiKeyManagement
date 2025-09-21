@@ -1,6 +1,6 @@
 use anyhow::{Result, Context};
 use bip39::Mnemonic;
-use bitcoin::bip32::{DerivationPath, Xpriv, Xpub};
+use bitcoin::bip32::{DerivationPath, Xpriv};
 use bitcoin::Network;
 use std::str::FromStr;
 
@@ -8,9 +8,6 @@ pub mod bip32;
 pub mod bip39_utils;
 pub mod ed25519_utils;
 
-pub use bip32::*;
-pub use bip39_utils::*;
-pub use ed25519_utils::*;
 
 pub fn validate_mnemonic(mnemonic: &str) -> Result<Mnemonic> {
     Mnemonic::from_str(mnemonic)
