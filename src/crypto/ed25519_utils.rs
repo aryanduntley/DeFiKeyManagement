@@ -6,6 +6,9 @@ use sha2::{Sha512, Digest};
 use ed25519_bip32::{XPrv, XPub, DerivationIndex, DerivationScheme};
 use hmac::{Hmac, Mac};
 use slip10_ed25519::derive_ed25519_private_key;
+use pbkdf2::pbkdf2;
+use sha2::Sha512 as Sha512Hash;
+use cardano_serialization_lib::{Bip32PrivateKey, PrivateKey};
 
 /// SLIP-0010 compatible ed25519 key derivation
 pub fn derive_ed25519_key_from_mnemonic(
@@ -212,6 +215,46 @@ pub fn derive_slip10_ed25519_key_from_mnemonic(
     let verifying_key = signing_key.verifying_key();
 
     Ok((private_key.to_vec(), verifying_key.to_bytes().to_vec()))
+}
+
+/// Cardano-specific key derivation using the official cardano-serialization-lib
+/// This uses the official Cardano BIP32 implementation
+pub fn derive_cardano_key_from_mnemonic(
+    mnemonic: &str,
+    passphrase: Option<&str>,
+    derivation_path: &str,
+) -> Result<(Vec<u8>, Vec<u8>)> {
+    // Parse and validate mnemonic
+    let mnemonic = Mnemonic::from_str(mnemonic)
+        .context("Invalid BIP-39 mnemonic")?;
+
+    // Get the raw entropy from the mnemonic
+    let entropy = mnemonic.to_entropy();
+
+    // Use passphrase as bytes (empty string if None)
+    let password = passphrase.unwrap_or("").as_bytes();
+
+    // Generate master private key using Cardano's official method
+    let master_bip32_key = Bip32PrivateKey::from_bip39_entropy(&entropy, password);
+
+    // Parse and derive the specific derivation path
+    let path_components = parse_derivation_path(derivation_path)?;
+
+    // Derive each level in the path
+    let mut current_key = master_bip32_key;
+    for &index in &path_components {
+        current_key = current_key.derive(index);
+    }
+
+    // Get the raw private key and public key
+    let private_key = current_key.to_raw_key();
+    let public_key = current_key.to_public();
+
+    // Convert to bytes
+    let private_key_bytes = private_key.as_bytes();
+    let public_key_bytes = public_key.to_raw_key().as_bytes();
+
+    Ok((private_key_bytes, public_key_bytes))
 }
 
 pub fn private_key_to_public_key_ed25519(private_key: &[u8]) -> Result<Vec<u8>> {

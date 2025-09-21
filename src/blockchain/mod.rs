@@ -276,6 +276,10 @@ impl SupportedBlockchain {
                 // Solana uses 4-level hardened path: m/44'/501'/account'/0'
                 format!("m/44'/501'/{}'/{}'", account, 0)
             },
+            Self::Cardano => {
+                // Cardano uses CIP-1852 standard: m/1852'/1815'/account'/change/address_index
+                format!("m/1852'/1815'/{}'/{}/{}", account, 0, address_index)
+            },
             _ => {
                 // For other blockchains, use standard BIP derivation
                 let default_bip = self.get_default_bip();

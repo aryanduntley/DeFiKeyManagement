@@ -1245,49 +1245,86 @@ impl Database {
 
     /// Gets the next available account index for a limited hierarchy blockchain (scoped to a master account)
     pub fn get_next_blockchain_account_index(&self, master_account_id: i64, blockchain: &str) -> Result<u32> {
-        // Parse derivation paths to find the highest account index used for this blockchain within this master account
-        let next_index: u32 = self.conn.query_row(
-            r#"
-            SELECT COALESCE(MAX(
-                CAST(
-                    CASE
-                        WHEN derivation_path LIKE 'm/%' THEN
-                            -- Extract account index from paths like m/44'/148'/X'
-                            SUBSTR(
-                                derivation_path,
-                                LENGTH('m/44''/') + LENGTH(
-                                    CASE blockchain
-                                        WHEN 'stellar' THEN '148'
-                                        WHEN 'solana' THEN '501'
-                                        ELSE '0'
-                                    END
-                                ) + LENGTH('''/') + 1,
-                                INSTR(
-                                    SUBSTR(derivation_path,
-                                           LENGTH('m/44''/') + LENGTH(
-                                               CASE blockchain
-                                                   WHEN 'stellar' THEN '148'
-                                                   WHEN 'solana' THEN '501'
-                                                   ELSE '0'
-                                               END
-                                           ) + LENGTH('''/') + 1
-                                    ),
-                                    ''''
-                                ) - 1
-                            )
-                        ELSE '0'
-                    END
-                AS INTEGER)
-            ), -1) + 1
-            FROM wallets w
-            JOIN wallet_groups wg ON w.wallet_group_id = wg.id
-            WHERE wg.master_account_id = ?1 AND w.blockchain = ?2 AND w.derivation_path IS NOT NULL
-            "#,
-            params![master_account_id, blockchain],
-            |row| Ok(row.get(0)?)
-        ).unwrap_or(0);
+        // Get all derivation paths for this blockchain and master account
+        let mut stmt = self.conn.prepare(
+            "SELECT derivation_path FROM wallets w
+             JOIN wallet_groups wg ON w.wallet_group_id = wg.id
+             WHERE wg.master_account_id = ?1 AND w.blockchain = ?2 AND w.derivation_path IS NOT NULL"
+        )?;
 
-        Ok(next_index)
+        let derivation_paths: Vec<String> = stmt.query_map(
+            params![master_account_id, blockchain],
+            |row| Ok(row.get::<_, String>(0)?)
+        )?.collect::<Result<Vec<_>, _>>()?;
+
+        // Parse derivation paths to extract account indices
+        let mut max_account_index: i32 = -1;
+
+        for path in derivation_paths {
+            if let Some(account_index) = self.extract_account_index_from_path(&path, blockchain) {
+                max_account_index = max_account_index.max(account_index as i32);
+            }
+        }
+
+        Ok((max_account_index + 1) as u32)
+    }
+
+    /// Extract account index from derivation path based on blockchain type
+    fn extract_account_index_from_path(&self, path: &str, blockchain: &str) -> Option<u32> {
+        // Split path into segments
+        let segments: Vec<&str> = path.split('/').collect();
+        if segments.len() < 4 || segments[0] != "m" {
+            return None;
+        }
+
+        // Find account index position based on blockchain
+        let account_index_position = match blockchain {
+            "stellar" => {
+                // Stellar: m/44'/148'/account' (3 segments total, account at index 3)
+                if segments.len() >= 4 && segments[1] == "44'" && segments[2] == "148'" {
+                    Some(3)
+                } else {
+                    None
+                }
+            },
+            "solana" => {
+                // Solana: m/44'/501'/account'/0' (4 segments total, account at index 3)
+                if segments.len() >= 5 && segments[1] == "44'" && segments[2] == "501'" {
+                    Some(3)
+                } else {
+                    None
+                }
+            },
+            "cardano" => {
+                // Cardano: m/1852'/1815'/account'/0/0 (5 segments total, account at index 3)
+                if segments.len() >= 5 && segments[1] == "1852'" && segments[2] == "1815'" {
+                    Some(3)
+                } else {
+                    None
+                }
+            },
+            _ => {
+                // Default Bitcoin-like: m/84'/0'/account'/0/0 or m/44'/0'/account'/0/0
+                if segments.len() >= 5 && (segments[2] == "0'" || segments[2].ends_with("'")) {
+                    Some(3)
+                } else {
+                    None
+                }
+            }
+        };
+
+        // Extract and parse account index
+        if let Some(pos) = account_index_position {
+            if let Some(account_segment) = segments.get(pos) {
+                // Remove trailing apostrophe and parse
+                let account_str = account_segment.trim_end_matches('\'');
+                account_str.parse::<u32>().ok()
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 
     /// Search wallets by term, optionally filtered by blockchain
