@@ -759,8 +759,47 @@ impl Database {
 
     // ========== WALLET ADDRESS OPERATIONS ==========
 
+    /// Check if wallet label already exists in the same scope
+    fn validate_wallet_label_uniqueness(&self, wallet: &Wallet) -> Result<()> {
+        if let Some(label) = &wallet.label {
+            match (wallet.wallet_group_id, wallet.address_group_id) {
+                // Wallet under wallet_group (direct)
+                (Some(wallet_group_id), None) => {
+                    let count: i64 = self.conn.query_row(
+                        "SELECT COUNT(*) FROM wallets WHERE wallet_group_id = ?1 AND address_group_id IS NULL AND label = ?2",
+                        params![wallet_group_id, label],
+                        |row| row.get(0)
+                    )?;
+                    if count > 0 {
+                        anyhow::bail!("A wallet with name '{}' already exists in this wallet group", label);
+                    }
+                },
+                // Wallet under address_group
+                (None, Some(address_group_id)) => {
+                    let count: i64 = self.conn.query_row(
+                        "SELECT COUNT(*) FROM wallets WHERE address_group_id = ?1 AND label = ?2",
+                        params![address_group_id, label],
+                        |row| row.get(0)
+                    )?;
+                    if count > 0 {
+                        anyhow::bail!("A wallet with name '{}' already exists in this address group", label);
+                    }
+                },
+                // Standalone wallet or both set (shouldn't happen, but allow)
+                _ => {
+                    // For standalone wallets, we could check globally or skip validation
+                    // For now, let's allow duplicate names for standalone wallets
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Creates a wallet within hierarchy (for mnemonic-derived wallets)
     pub fn create_wallet(&self, wallet: &Wallet) -> Result<i64> {
+        // Validate label uniqueness first
+        self.validate_wallet_label_uniqueness(wallet)?;
+
         let tx = self.conn.unchecked_transaction()?;
 
         // Insert wallet - no address_index management needed (handled by derivation_path)

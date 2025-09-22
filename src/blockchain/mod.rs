@@ -277,8 +277,9 @@ impl SupportedBlockchain {
                 format!("m/44'/148'/{}'" , account)
             },
             Self::Solana => {
-                // Solana uses 4-level hardened path: m/44'/501'/account'/0'
-                format!("m/44'/501'/{}'/{}'", account, 0)
+                // Solana uses 3-level hardened path: m/44'/501'/account' (Trust Wallet compatible)
+                // Use --sol-path "standard" for 4-level: m/44'/501'/account'/0'
+                format!("m/44'/501'/{}'", account)
             },
             Self::Cardano => {
                 let cardano_role = role.unwrap_or(0);

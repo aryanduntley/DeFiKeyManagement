@@ -143,6 +143,21 @@ wallet-backup add-wallet \
   --wallet-group "TradingWallets" \
   --blockchain "ethereum" \
   --name "ETH-Trading"
+
+# Create Solana wallet (Trust Wallet compatible by default)
+wallet-backup add-wallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --blockchain "solana" \
+  --name "MySolanaWallet"
+
+# Create Solana wallet with specific derivation path
+wallet-backup add-wallet \
+  --account "MyMainAccount" \
+  --wallet-group "PersonalWallets" \
+  --blockchain "solana" \
+  --name "MySolanaStandard" \
+  --sol-path "standard"
 ```
 
 #### List Base Wallets
@@ -525,10 +540,33 @@ wallet-backup add-wallet --account "MyAccount" --wallet-group "Group1" --blockch
 #         Supported BIPs for ethereum: ["BIP-44"]
 ```
 
+### Solana Derivation Path Options
+
+**Solana addresses are now fully compatible with Trust Wallet by default!**
+
+Use the `--sol-path` parameter to control Solana derivation paths:
+
+```bash
+# Trust Wallet compatible (default) - uses m/44'/501'/0'
+wallet-backup add-wallet --account "MyAccount" --wallet-group "Group1" --blockchain "solana" --name "MySolana"
+
+# Trust Wallet compatible (explicit) - uses m/44'/501'/0'
+wallet-backup add-wallet --account "MyAccount" --wallet-group "Group1" --blockchain "solana" --name "MySolana" --sol-path "trust-wallet"
+
+# BIP-44 standard compliant - uses m/44'/501'/0'/0'
+wallet-backup add-wallet --account "MyAccount" --wallet-group "Group1" --blockchain "solana" --name "MySolana" --sol-path "standard"
+```
+
+**Derivation Path Details:**
+- **Default/Trust Wallet**: `m/44'/501'/{account}'` (3-level hardened) - Compatible with Trust Wallet, Phantom, and most Solana wallets
+- **Standard**: `m/44'/501'/{account}'/0'` (4-level hardened) - Full BIP-44 compliance but may not match other wallets
+- **Curve**: Ed25519 with SLIP-0010 derivation (industry standard)
+
 ### Trust Wallet Compatibility
 
-**Bitcoin addresses generated with this tool now match Trust Wallet and other modern Bitcoin wallets!**
+**Bitcoin and Solana addresses generated with this tool now match Trust Wallet and other modern wallets!**
 
+**Bitcoin:**
 - **Default**: Uses BIP-84 (Native SegWit) for Bitcoin, generating addresses that start with `bc1`
 - **Compatible**: Addresses match Trust Wallet, iancoleman.github.io/bip39, and other standard wallets
 - **Multiple Standards**: Support for BIP-44 (Legacy), BIP-49 (P2SH-wrapped), and BIP-84 (Native SegWit)
@@ -538,13 +576,17 @@ Example Bitcoin addresses generated:
 - **BIP-44**: Legacy addresses (start with "1")
 - **BIP-49**: P2SH-wrapped SegWit addresses (start with "3")
 
+**Solana:**
+- **Default**: Uses 3-level hardened path `m/44'/501'/0'` compatible with Trust Wallet
+- **Ed25519**: SLIP-0010 derivation ensuring compatibility across Solana ecosystem
+
 ## 🌐 Supported Blockchains
 
 | Blockchain | Coin Type | Curve | Derivation Path Pattern* | Status |
 |------------|-----------|-------|-----------------------|--------|
 | Bitcoin | 0 | secp256k1 | m/84'/0'/N'/0/0 (default), m/44'/0'/N'/0/0, m/49'/0'/N'/0/0 | ✅ |
 | Ethereum | 60 | secp256k1 | m/44'/60'/N'/0/0 | ✅ |
-| Solana | 501 | ed25519 | m/44'/501'/N'/0' | ✅ |
+| Solana | 501 | ed25519 | m/44'/501'/N' (default), m/44'/501'/N'/0' (--sol-path standard) | ✅ |
 | Stellar (XLM) | 148 | ed25519 | m/44'/148'/N' | ✅ |
 | XRP (Ripple) | 144 | secp256k1 | m/44'/144'/N'/0/0 | ✅ |
 | Cardano (ADA) | 1815 | ed25519 | m/1852'/1815'/N'/0/0 | ✅ |

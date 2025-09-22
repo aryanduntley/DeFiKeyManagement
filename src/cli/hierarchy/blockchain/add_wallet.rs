@@ -21,6 +21,8 @@ pub struct AddWalletArgs {
     pub address_index: Option<u32>,
     #[arg(long, help = "BIP standard to use (44, 49, 84). If not specified, uses blockchain default")]
     pub bip: Option<String>,
+    #[arg(long, help = "Solana derivation path variant: 'trust-wallet' (m/44'/501'/0', default) or 'standard' (m/44'/501'/0'/0', BIP-44). Only applies to Solana blockchain")]
+    pub sol_path: Option<String>,
 }
 
 pub fn execute(args: AddWalletArgs, db: &Database) -> Result<()> {
@@ -90,6 +92,18 @@ pub fn execute(args: AddWalletArgs, db: &Database) -> Result<()> {
     let account_index = args.account_index.unwrap_or(wallet_group.account_index);
     let address_index = args.address_index.unwrap_or(0);
 
+    // Validate sol_path parameter
+    if let Some(ref sol_path) = args.sol_path {
+        if blockchain != SupportedBlockchain::Solana {
+            println!("⚠️  Warning: --sol-path parameter only applies to Solana blockchain, ignoring for {}", blockchain);
+        } else if !["standard", "trust-wallet"].contains(&sol_path.as_str()) {
+            println!("❌ Invalid --sol-path value: {}. Must be 'standard' or 'trust-wallet'", sol_path);
+            return Ok(());
+        } else {
+            println!("✓ Using Solana derivation path variant: {}", sol_path);
+        }
+    }
+
     // Process single blockchain
     println!("\nProcessing {}...", blockchain);
 
@@ -103,6 +117,7 @@ pub fn execute(args: AddWalletArgs, db: &Database) -> Result<()> {
         address_index,
         &args.name,
         bip_standard,
+        args.sol_path,
     ) {
         Ok(wallet_id) => {
             println!("✓ Success (Wallet ID: {})", wallet_id);
@@ -132,6 +147,7 @@ fn process_blockchain(
     address_index: u32,
     wallet_name: &str,
     bip_standard: Option<BipStandard>,
+    sol_path: Option<String>,
 ) -> Result<i64> {
     // ALL blockchains should use per-master-account auto-incrementing account indexes
     // Wallet groups are purely for internal organization and should not affect derivation paths
@@ -149,7 +165,16 @@ fn process_blockchain(
                 .context("Failed to derive Bitcoin keys with BIP standard")?
         } else {
             // For other blockchains, use default derivation path (includes blockchain-specific customizations)
-            let derivation_path = blockchain.get_default_derivation_path(effective_account_index, 0);
+            let derivation_path = if *blockchain == SupportedBlockchain::Solana && sol_path.is_some() {
+                // Handle Solana-specific derivation paths
+                match sol_path.as_ref().unwrap().as_str() {
+                    "trust-wallet" => format!("m/44'/501'/{}'", effective_account_index),
+                    "standard" => format!("m/44'/501'/{}'/{}'", effective_account_index, 0),
+                    _ => blockchain.get_default_derivation_path(effective_account_index, 0),
+                }
+            } else {
+                blockchain.get_default_derivation_path(effective_account_index, 0)
+            };
             handler.derive_from_mnemonic(
                 mnemonic,
                 passphrase,
@@ -160,7 +185,16 @@ fn process_blockchain(
         }
     } else {
         // Use default derivation (with role and BIP support for Cardano)
-        let custom_path: Option<String> = None;
+        let custom_path: Option<String> = if *blockchain == SupportedBlockchain::Solana && sol_path.is_some() {
+            // Handle Solana-specific derivation paths
+            match sol_path.as_ref().unwrap().as_str() {
+                "trust-wallet" => Some(format!("m/44'/501'/{}'", effective_account_index)),
+                "standard" => Some(format!("m/44'/501'/{}'/{}'", effective_account_index, 0)),
+                _ => None,
+            }
+        } else {
+            None
+        };
 
         handler.derive_from_mnemonic(
             mnemonic,
